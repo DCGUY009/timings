@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, ArrowRight, UserCircle, CheckCircle } from 'lucide-react';
+import { Mail, Lock, ArrowRight, UserCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { User } from '../types';
 import { supabase } from '../utils/supabaseClient';
 
@@ -22,6 +22,7 @@ export default function AuthScreen({ onLoginSuccess, onBackToLanding }: AuthScre
   const [customGoogleName, setCustomGoogleName] = useState('');
   const [isAddingGoogleAccount, setIsAddingGoogleAccount] = useState(false);
   const [verificationSent, setVerificationSent] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -242,13 +243,20 @@ export default function AuthScreen({ onLoginSuccess, onBackToLanding }: AuthScre
                     <Lock className="w-4 h-4" />
                   </span>
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full bg-surface-container-lowest border border-outline-variant/60 focus:border-primary-container focus:ring-1 focus:ring-primary-container rounded-xl pl-10 pr-4 py-3.5 text-sm font-sans placeholder-outline-variant text-on-surface outline-none transition-all font-mono"
+                    className="w-full bg-surface-container-lowest border border-outline-variant/60 focus:border-primary-container focus:ring-1 focus:ring-primary-container rounded-xl pl-10 pr-10 py-3.5 text-sm font-sans placeholder-outline-variant text-on-surface outline-none transition-all font-mono"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-on-surface-variant hover:text-white transition-colors cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
 
