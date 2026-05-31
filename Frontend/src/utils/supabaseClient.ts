@@ -11,7 +11,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient<Database>(
+// Singleton pattern to prevent multiple instances during HMR (Hot Module Replacement) in development
+const globalForSupabase = globalThis as unknown as { supabase: ReturnType<typeof createClient<Database>> };
+
+export const supabase = globalForSupabase.supabase || createClient<Database>(
   supabaseUrl || '',
   supabaseAnonKey || '',
   {
@@ -26,3 +29,7 @@ export const supabase = createClient<Database>(
     }
   }
 );
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForSupabase.supabase = supabase;
+}
