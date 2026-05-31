@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#060e20" />
+      <stop offset="100%" stop-color="#0b1326" />
+    </linearGradient>
+    
+    <!-- Primary Theme Gradient (Cyan to Purple/Blue) -->
+    <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff" />
+      <stop offset="100%" stop-color="#8a92ff" />
+    </linearGradient>
+
+    <!-- White to Cyan Gradient -->
+    <linearGradient id="handGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#00f0ff" />
+    </linearGradient>
+
+    <!-- Glowing effect -->
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="14" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- iOS-style Squircle background -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" stroke="#1c253d" stroke-width="10" />
+
+  <!-- Outer circular timer progress arc -->
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#primaryGrad)" stroke-width="26" stroke-linecap="round" stroke-dasharray="1005" stroke-dashoffset="220" filter="url(#neonGlow)" />
+  
+  <!-- Tiny glowing tick dots around the timer -->
+  <circle cx="256" cy="96" r="8" fill="#00f0ff" filter="url(#neonGlow)" />
+  <circle cx="416" cy="256" r="8" fill="#8a92ff" filter="url(#neonGlow)" />
+  <circle cx="256" cy="416" r="8" fill="#8a92ff" opacity="0.5" />
+  <circle cx="96" cy="256" r="8" fill="#00f0ff" opacity="0.5" />
+
+  <!-- The elegant 'T' / clock-hand graphic in center -->
+  <g transform="translate(256, 256)">
+    <!-- Horizontal bar of the 'T' at the top -->
+    <rect x="-70" y="-90" width="140" height="22" rx="11" fill="url(#handGrad)" filter="url(#neonGlow)" />
+    
+    <!-- Vertical bar of the 'T' / clock hand pointing down (6 o'clock) -->
+    <rect x="-11" y="-90" width="22" height="170" rx="11" fill="url(#primaryGrad)" filter="url(#neonGlow)" />
+    
+    <!-- Clock hand pointing right (3 o'clock) -->
+    <rect x="-11" y="-11" width="100" height="22" rx="11" fill="#ffffff" filter="url(#neonGlow)" />
+    
+    <!-- Center glowing cap/pin -->
+    <circle cx="0" cy="0" r="18" fill="#ffffff" filter="url(#neonGlow)" />
+    <circle cx="0" cy="0" r="8" fill="#00f0ff" />
+  </g>
+</svg>
