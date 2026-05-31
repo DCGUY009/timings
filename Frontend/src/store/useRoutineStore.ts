@@ -55,51 +55,62 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
 
     // Set up auth state listener
     supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const email = session.user.email || '';
-        const name = session.user.user_metadata?.name || email.split('@')[0];
-        
-        // Fetch or create profile
-        let { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+      try {
+        if (session?.user) {
+          const email = session.user.email || '';
+          const name = session.user.user_metadata?.name || email.split('@')[0];
+          
+          // Fetch profile safely
+          let profile = null;
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            if (!error) profile = data;
+          } catch (e) {
+            console.error('Error fetching profile:', e);
+          }
 
-        const loggedInUser: User = {
-          email,
-          name: profile?.name || name,
-          isPro: profile?.is_pro || false
-        };
+          const loggedInUser: User = {
+            email,
+            name: profile?.name || name,
+            isPro: profile?.is_pro || false
+          };
 
-        set({ 
-          user: loggedInUser,
-          streakDays: profile?.streak_days || 5
-        });
+          set({ 
+            user: loggedInUser,
+            streakDays: profile?.streak_days || 5
+          });
 
-        // Load data from Supabase
-        await get().fetchData(session.user.id);
+          // Load data from Supabase
+          await get().fetchData(session.user.id);
 
-        if (isConfirmation) {
-          set({ showEmailConfirmedAlert: true });
-          // Clean up URL parameters so it doesn't trigger again on page refresh
-          window.history.replaceState({}, document.title, window.location.origin);
+          if (isConfirmation) {
+            set({ showEmailConfirmedAlert: true });
+            // Clean up URL parameters so it doesn't trigger again on page refresh
+            window.history.replaceState({}, document.title, window.location.origin);
+          }
+        } else {
+          // Fallback to localStorage for guest users
+          const savedRoutines = localStorage.getItem('timings_saved_routines');
+          const savedChecklist = localStorage.getItem('timings_checklist');
+          const savedHistory = localStorage.getItem('timings_history');
+          const savedUser = localStorage.getItem('timings_user');
+          
+          set({
+            user: savedUser ? JSON.parse(savedUser) : null,
+            routines: savedRoutines ? JSON.parse(savedRoutines) : [...DEFAULT_ROUTINES],
+            checklist: savedChecklist ? JSON.parse(savedChecklist) : [...DEFAULT_CHECKLIST],
+            history: savedHistory ? JSON.parse(savedHistory) : [...DEFAULT_HISTORY],
+            streakDays: 5,
+            isLoading: false
+          });
         }
-      } else {
-        // Fallback to localStorage for guest users
-        const savedRoutines = localStorage.getItem('timings_saved_routines');
-        const savedChecklist = localStorage.getItem('timings_checklist');
-        const savedHistory = localStorage.getItem('timings_history');
-        const savedUser = localStorage.getItem('timings_user');
-        
-        set({
-          user: savedUser ? JSON.parse(savedUser) : null,
-          routines: savedRoutines ? JSON.parse(savedRoutines) : [...DEFAULT_ROUTINES],
-          checklist: savedChecklist ? JSON.parse(savedChecklist) : [...DEFAULT_CHECKLIST],
-          history: savedHistory ? JSON.parse(savedHistory) : [...DEFAULT_HISTORY],
-          streakDays: 5,
-          isLoading: false
-        });
+      } catch (err) {
+        console.error('Error in onAuthStateChange callback:', err);
+        set({ isLoading: false });
       }
     });
   },
