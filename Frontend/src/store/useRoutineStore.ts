@@ -44,6 +44,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
 
   // Initialize store and listen to Supabase Auth state changes
   initializeStore: async () => {
+    console.log('[Store Init] initializeStore started');
     set({ isLoading: true });
 
     // Detect if this is an email confirmation redirect before auth state listener fires
@@ -54,6 +55,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
                            hashParams.has('access_token');
 
     const handleUserSession = async (session: any) => {
+      console.log('[Store Init] handleUserSession triggered with session user:', session?.user?.email || 'none');
       try {
         if (session?.user) {
           const email = session.user.email || '';
@@ -62,14 +64,20 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
           // Fetch profile safely
           let profile = null;
           try {
+            console.log('[Store Init] Fetching profile from DB for:', session.user.id);
             const { data, error } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single();
-            if (!error) profile = data;
+            if (!error) {
+              profile = data;
+              console.log('[Store Init] Profile fetched successfully:', profile);
+            } else {
+              console.warn('[Store Init] Profile not found or error returned:', error);
+            }
           } catch (e) {
-            console.error('Error fetching profile:', e);
+            console.error('[Store Init] Exception fetching profile:', e);
           }
 
           const loggedInUser: User = {
@@ -84,6 +92,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
           });
 
           // Load data from Supabase
+          console.log('[Store Init] Calling fetchData for user ID:', session.user.id);
           await get().fetchData(session.user.id);
 
           if (isConfirmation) {
@@ -92,6 +101,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
             window.history.replaceState({}, document.title, window.location.origin);
           }
         } else {
+          console.log('[Store Init] No user session found. Loading local guest data.');
           // Fallback to localStorage for guest users
           const savedRoutines = localStorage.getItem('timings_saved_routines');
           const savedChecklist = localStorage.getItem('timings_checklist');
@@ -108,7 +118,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
           });
         }
       } catch (err) {
-        console.error('Error in session handler:', err);
+        console.error('[Store Init] Error in session handler:', err);
         set({ isLoading: false });
       }
     };
@@ -116,17 +126,21 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
     // Get initial session synchronously/asynchronously from localStorage cache
     let initialSession = null;
     try {
+      console.log('[Store Init] Fetching initial session from getSession()...');
       const { data } = await supabase.auth.getSession();
       initialSession = data?.session;
+      console.log('[Store Init] getSession() completed. Session user:', initialSession?.user?.email || 'none');
     } catch (e) {
-      console.error('Error getting initial session:', e);
+      console.error('[Store Init] Error getting initial session:', e);
     }
 
     // Process initial session state immediately
     await handleUserSession(initialSession);
 
     // Set up auth state listener for future changes
+    console.log('[Store Init] Registering onAuthStateChange listener');
     supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[Store Init] onAuthStateChange event received:', event, 'User:', session?.user?.email || 'none');
       // Process events that change auth state (SIGNED_IN, SIGNED_OUT, USER_UPDATED)
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
         await handleUserSession(session);
@@ -138,8 +152,10 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
 
   // Fetch all user specific data from Supabase
   fetchData: async (userId: string) => {
+    console.log('[fetchData] started for user:', userId);
     try {
       // 1. Fetch Routines with Steps and Checklist Items
+      console.log('[fetchData] Fetching routines + steps + checklist items...');
       const { data: dbRoutines, error: routinesErr } = await supabase
         .from('routines')
         .select(`
@@ -149,7 +165,11 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
         `)
         .eq('user_id', userId);
 
-      if (routinesErr) throw routinesErr;
+      if (routinesErr) {
+        console.error('[fetchData] Routines fetch error:', routinesErr);
+        throw routinesErr;
+      }
+      console.log('[fetchData] Routines fetched successfully. Count:', dbRoutines?.length || 0);
 
       const formattedRoutines: Routine[] = (dbRoutines || []).map((r: any) => ({
         id: r.id,
@@ -173,22 +193,32 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       }));
 
       // 2. Fetch Global Checklist Items
+      console.log('[fetchData] Fetching global checklist items...');
       const { data: dbChecklist, error: checklistErr } = await supabase
         .from('global_checklist_items')
         .select('*')
         .eq('user_id', userId)
         .order('position', { ascending: true });
 
-      if (checklistErr) throw checklistErr;
+      if (checklistErr) {
+        console.error('[fetchData] Checklist fetch error:', checklistErr);
+        throw checklistErr;
+      }
+      console.log('[fetchData] Global checklist fetched successfully. Count:', dbChecklist?.length || 0);
 
       // 3. Fetch Session History
+      console.log('[fetchData] Fetching session history...');
       const { data: dbHistory, error: historyErr } = await supabase
         .from('session_history')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (historyErr) throw historyErr;
+      if (historyErr) {
+        console.error('[fetchData] History fetch error:', historyErr);
+        throw historyErr;
+      }
+      console.log('[fetchData] Session history fetched successfully. Count:', dbHistory?.length || 0);
 
       const historyList = (dbHistory || []).map((h: any) => ({
         id: h.id,
@@ -201,6 +231,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       // Robust check: If history is empty but streakDays is still showing > 0 (often from legacy triggers/defaults),
       // we auto-correct it locally and update the database profile record.
       if (historyList.length === 0 && get().streakDays > 0) {
+        console.log('[fetchData] Correcting streakDays from', get().streakDays, 'to 0 because history is empty');
         set({ streakDays: 0 });
         try {
           await supabase
@@ -208,10 +239,11 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
             .update({ streak_days: 0 })
             .eq('id', userId);
         } catch (dbErr) {
-          console.error('Failed to auto-correct profile streak to 0:', dbErr);
+          console.error('[fetchData] Failed to auto-correct profile streak to 0:', dbErr);
         }
       }
 
+      console.log('[fetchData] All queries completed. Setting state and setting isLoading to false.');
       set({
         routines: formattedRoutines,
         checklist: dbChecklist || [],
@@ -219,7 +251,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
         isLoading: false
       });
     } catch (err) {
-      console.error('Error fetching Supabase data:', err);
+      console.error('[fetchData] Exception occurred in fetchData:', err);
       set({ isLoading: false });
     }
   },
