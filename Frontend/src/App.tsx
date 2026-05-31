@@ -58,6 +58,13 @@ export default function App() {
     initializeStore();
   }, []);
 
+  // Redirect to dashboard if logged in and on landing/auth screens
+  useEffect(() => {
+    if (user && (currentScreen === 'landing' || currentScreen === 'auth')) {
+      setCurrentScreen('dashboard');
+    }
+  }, [user, currentScreen]);
+
   const startRoutine = (routine: Routine) => {
     handleStartRoutine(routine);
     setCurrentScreen('timer');
