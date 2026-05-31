@@ -190,16 +190,32 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
 
       if (historyErr) throw historyErr;
 
+      const historyList = (dbHistory || []).map((h: any) => ({
+        id: h.id,
+        routineName: h.routine_name,
+        timestamp: h.timestamp,
+        durationMinutes: h.duration_minutes,
+        completionRate: h.completion_rate
+      }));
+
+      // Robust check: If history is empty but streakDays is still showing > 0 (often from legacy triggers/defaults),
+      // we auto-correct it locally and update the database profile record.
+      if (historyList.length === 0 && get().streakDays > 0) {
+        set({ streakDays: 0 });
+        try {
+          await supabase
+            .from('profiles')
+            .update({ streak_days: 0 })
+            .eq('id', userId);
+        } catch (dbErr) {
+          console.error('Failed to auto-correct profile streak to 0:', dbErr);
+        }
+      }
+
       set({
         routines: formattedRoutines,
         checklist: dbChecklist || [],
-        history: (dbHistory || []).map((h: any) => ({
-          id: h.id,
-          routineName: h.routine_name,
-          timestamp: h.timestamp,
-          durationMinutes: h.duration_minutes,
-          completionRate: h.completion_rate
-        })),
+        history: historyList,
         isLoading: false
       });
     } catch (err) {

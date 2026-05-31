@@ -67,5 +67,5 @@ All database endpoints are secured by Row-Level Security. Query requests will au
 A PostgreSQL trigger (`on_auth_user_created`) automatically intercepts new registrations in Supabase Auth and populates the `public.profiles` table with:
 - The user's ID and email.
 - Display name (defaulting to the email prefix if metadata name is not provided).
-- A default streak of `5` days.
+- A default streak of `0` days.
 - A default avatar ID (`avatar-1`).
