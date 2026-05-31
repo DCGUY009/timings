@@ -45,10 +45,10 @@ Backend/
    - Seed default routines, checklists, and history logs associated with the default user for immediate testing.
 
 ### Step 2: Configure Frontend Environment Variables
-Set up your `.env.local` inside the `Frontend/` folder using your project credentials:
+Set up your `.env.local` inside the `Frontend/` folder using your project credentials (find these in your Supabase project under **Settings → API**):
 ```env
-VITE_SUPABASE_URL=https://cohfeeekwzlqrgufxtwi.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_VaxWmsFy2oa68FZapIN59Q_80tD6R9n
+VITE_SUPABASE_URL=https://<your-project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-anon-key>
 ```
 
 ### Step 3: Wire Frontend to Zustand State Store

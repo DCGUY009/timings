@@ -5,14 +5,11 @@ import { Database } from './database.types';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Both env vars MUST be set — no hardcoded fallbacks.
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    'Supabase credentials missing. Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your environment variables.'
+  throw new Error(
+    'Missing Supabase environment variables. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env.local file.'
   );
 }
 
-// Instantiate the typed Supabase client for cloud connections
-export const supabase = createClient<Database>(
-  supabaseUrl || 'https://cohfeeekwzlqrgufxtwi.supabase.co',
-  supabaseAnonKey || 'sb_publishable_VaxWmsFy2oa68FZapIN59Q_80tD6R9n'
-);
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
