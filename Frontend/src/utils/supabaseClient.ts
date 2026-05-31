@@ -13,5 +13,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient<Database>(
   supabaseUrl || '',
-  supabaseAnonKey || ''
+  supabaseAnonKey || '',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      // No-op lock to prevent navigator.locks deadlocks/hangs on page load/redirects
+      lock: async (name, acquireTimeout, fn) => {
+        return await fn();
+      }
+    }
+  }
 );
