@@ -3,24 +3,23 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main          # or whichever branch you use for production
-  workflow_dispatch:   # allows manual runs
+      - main
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: Frontend   # <‑‑ path to your Vite project
-
+        working-directory: Frontend
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'          # match your local version
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
@@ -37,5 +36,3 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
-          # optional: keep history on the gh‑pages branch
-          # keep_files: false
