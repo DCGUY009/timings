@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
-import { ActiveScreen, Routine, SessionHistoryItem, ChecklistItem, User } from './types';
-import { DEFAULT_ROUTINES, DEFAULT_CHECKLIST, DEFAULT_HISTORY } from './data/defaultRoutines';
+import { motion, AnimatePresence } from 'motion/react';
+import { CheckCircle2, X } from 'lucide-react';
+import { ActiveScreen, Routine, User } from './types';
+import { useRoutineStore } from './store/useRoutineStore';
+import { supabase } from './utils/supabaseClient';
 
 // Import View Components
 import LandingPage from './components/LandingPage';
@@ -16,179 +19,104 @@ import ProfileScreen from './components/ProfileScreen';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ActiveScreen>('landing');
-  const [user, setUser] = useState<User | null>({
-    name: 'Santhosh',
-    email: 'samudrala.santhosh.19cse@bmu.edu.in'
-  });
 
-  const [routines, setRoutines] = useState<Routine[]>([]);
-  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
-  const [history, setHistory] = useState<SessionHistoryItem[]>([]);
-  const [activeRoutine, setActiveRoutine] = useState<Routine | null>(null);
-  const [streakDays, setStreakDays] = useState(5);
+  const {
+    user,
+    routines,
+    checklist,
+    history,
+    activeRoutine,
+    streakDays,
+    isLoading,
+    initializeStore,
+    handleToggleRoutineCheck,
+    handleToggleCheck,
+    handleStartRoutine,
+    handleSaveEditedRoutine,
+    handleDeleteRoutine,
+    handleClearHistory,
+    handleAddSessionToLog,
+    handleLogout,
+    handleLoginSuccess,
+    handleTimerFinished
+  } = useRoutineStore();
 
-  // Initialize and load state from localStorage or defaults
+  const showEmailConfirmedAlert = useRoutineStore((state) => state.showEmailConfirmedAlert);
+
+  // Auto-dismiss confirmation toast after 6 seconds
   useEffect(() => {
-    // 1. Load Routines
-    const savedRoutines = localStorage.getItem('timings_saved_routines');
-    if (savedRoutines) {
-      const parsed = JSON.parse(savedRoutines) as Routine[];
-      const finalized = parsed.map(r => ({
-        ...r,
-        checklist: r.checklist || [...DEFAULT_CHECKLIST]
-      }));
-      setRoutines(finalized);
-    } else {
-      setRoutines([...DEFAULT_ROUTINES]);
-      localStorage.setItem('timings_saved_routines', JSON.stringify(DEFAULT_ROUTINES));
+    if (showEmailConfirmedAlert) {
+      const timer = setTimeout(() => {
+        useRoutineStore.setState({ showEmailConfirmedAlert: false });
+      }, 6000);
+      return () => clearTimeout(timer);
     }
+  }, [showEmailConfirmedAlert]);
 
-    // 2. Load Checklist
-    const savedChecklist = localStorage.getItem('timings_checklist');
-    if (savedChecklist) {
-      setChecklist(JSON.parse(savedChecklist));
-    } else {
-      setChecklist([...DEFAULT_CHECKLIST]);
-      localStorage.setItem('timings_checklist', JSON.stringify(DEFAULT_CHECKLIST));
-    }
-
-    // 3. Load History logs
-    const savedHistory = localStorage.getItem('timings_history');
-    if (savedHistory) {
-      setHistory(JSON.parse(savedHistory));
-    } else {
-      setHistory([...DEFAULT_HISTORY]);
-      localStorage.setItem('timings_history', JSON.stringify(DEFAULT_HISTORY));
-    }
-
-    // 4. Load User profile
-    const savedUser = localStorage.getItem('timings_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+  // Initialize and load state from Supabase / localStorage on mount
+  useEffect(() => {
+    initializeStore();
   }, []);
 
-  const handleToggleRoutineCheck = (routineId: string, itemId: string) => {
-    const updated = routines.map((r) => {
-      if (r.id === routineId) {
-        const rChecklist = r.checklist || [];
-        const updatedChecklist = rChecklist.map((item) =>
-          item.id === itemId ? { ...item, checked: !item.checked } : item
-        );
-        return { ...r, checklist: updatedChecklist };
-      }
-      return r;
-    });
-    setRoutines(updated);
-    localStorage.setItem('timings_saved_routines', JSON.stringify(updated));
-  };
-
-  const handleToggleCheck = (id: string) => {
-    const updated = checklist.map((item) =>
-      item.id === id ? { ...item, checked: !item.checked } : item
-    );
-    setChecklist(updated);
-    localStorage.setItem('timings_checklist', JSON.stringify(updated));
-  };
-
-  const handleStartRoutine = (routine: Routine) => {
-    setActiveRoutine(routine);
+  const startRoutine = (routine: Routine) => {
+    handleStartRoutine(routine);
     setCurrentScreen('timer');
   };
 
   const handleEditRoutine = (routine: Routine) => {
-    setActiveRoutine(routine);
+    handleStartRoutine(routine);
     setCurrentScreen('edit-routine');
   };
 
   const handleCreateRoutine = () => {
-    setActiveRoutine(null); // Create brand new sequence from canvas
+    useRoutineStore.setState({ activeRoutine: null });
     setCurrentScreen('edit-routine');
   };
 
-  const handleSaveEditedRoutine = (savedRoutine: Routine) => {
-    let updatedRoutines: Routine[] = [];
-    const exists = routines.some((r) => r.id === savedRoutine.id);
-    
-    if (exists) {
-      updatedRoutines = routines.map((r) => r.id === savedRoutine.id ? savedRoutine : r);
-    } else {
-      updatedRoutines = [...routines, savedRoutine];
-    }
-    
-    setRoutines(updatedRoutines);
-    localStorage.setItem('timings_saved_routines', JSON.stringify(updatedRoutines));
+  const saveEditedRoutine = async (savedRoutine: Routine) => {
+    await handleSaveEditedRoutine(savedRoutine);
     setCurrentScreen('routines');
   };
 
-  const handleDeleteRoutine = (id: string) => {
-    const updated = routines.filter((r) => r.id !== id);
-    setRoutines(updated);
-    localStorage.setItem('timings_saved_routines', JSON.stringify(updated));
-  };
-
-  const handleClearHistory = () => {
-    setHistory([]);
-    localStorage.setItem('timings_history', JSON.stringify([]));
-  };
-
-  const handleAddSessionToLog = (item: SessionHistoryItem) => {
-    const updated = [item, ...history];
-    setHistory(updated);
-    localStorage.setItem('timings_history', JSON.stringify(updated));
-    setStreakDays((prev) => prev + 1);
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('timings_user');
+  const logout = async () => {
+    await handleLogout();
     setCurrentScreen('landing');
   };
 
-  const handleLoginSuccess = (signedInUser: User) => {
-    setUser(signedInUser);
-    localStorage.setItem('timings_user', JSON.stringify(signedInUser));
-    setCurrentScreen('dashboard');
-  };
-
-  // Callback once timing workspace concludes active step running
-  const handleTimerFinished = (completed: boolean, sessionLengthInMinutes: number) => {
-    if (completed && activeRoutine) {
-      // Build session log entry
-      const logItem: SessionHistoryItem = {
-        id: `log-${Date.now()}`,
-        routineName: activeRoutine.name,
-        timestamp: `${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`,
-        durationMinutes: sessionLengthInMinutes,
-        completionRate: 100
-      };
-
-      // Update routine's "last executed timestamp"
-      const updatedRoutines = routines.map((r) => {
-        if (r.id === activeRoutine.id) {
-          return {
-            ...r,
-            lastExecuted: `Today, ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
-          };
-        }
-        return r;
-      });
-
-      setRoutines(updatedRoutines);
-      localStorage.setItem('timings_saved_routines', JSON.stringify(updatedRoutines));
-      
-      handleAddSessionToLog(logItem);
+  const onLoginSuccess = async (signedInUser: User) => {
+    const { data: authSession } = await supabase.auth.getSession();
+    if (authSession?.session?.user) {
+      setCurrentScreen('dashboard');
+    } else {
+      // Mock login fallback
+      await handleLoginSuccess(signedInUser, 'mock-user-id');
+      setCurrentScreen('dashboard');
     }
-    setActiveRoutine(null);
+  };
+
+  const timerFinished = async (completed: boolean, sessionLengthInMinutes: number) => {
+    await handleTimerFinished(completed, sessionLengthInMinutes);
     setCurrentScreen('dashboard');
   };
 
-  const handleTryPresetOnLanding = (presetId: string) => {
+  const tryPresetOnLanding = (presetId: string) => {
     const matched = routines.find((r) => r.id === presetId);
     if (matched) {
-      handleStartRoutine(matched);
+      startRoutine(matched);
     }
   };
+
+  // Render a loading state during the initial Supabase session verification
+  if (isLoading) {
+    return (
+      <div className="flex bg-[#0d1527] items-center justify-center min-h-screen text-sans select-none">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 rounded-full border-4 border-primary-container border-t-transparent animate-spin mb-4"></div>
+          <p className="text-body-md text-on-surface-variant font-mono">Synchronizing workspace...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Render Screens based on active view selection
   const renderMainContent = () => {
@@ -199,7 +127,7 @@ export default function App() {
             user={user}
             routines={routines}
             onToggleRoutineCheck={handleToggleRoutineCheck}
-            onStartRoutine={handleStartRoutine}
+            onStartRoutine={startRoutine}
             onNavigate={setCurrentScreen}
             streakDays={streakDays}
           />
@@ -208,7 +136,7 @@ export default function App() {
         return (
           <RoutinesDashboard
             routines={routines}
-            onStartRoutine={handleStartRoutine}
+            onStartRoutine={startRoutine}
             onEditRoutine={handleEditRoutine}
             onDeleteRoutine={handleDeleteRoutine}
             onCreateRoutine={handleCreateRoutine}
@@ -218,7 +146,7 @@ export default function App() {
         return (
           <RoutineEditor
             routine={activeRoutine}
-            onSave={handleSaveEditedRoutine}
+            onSave={saveEditedRoutine}
             onCancel={() => setCurrentScreen('routines')}
           />
         );
@@ -243,9 +171,17 @@ export default function App() {
             history={history}
             routines={routines}
             streakDays={streakDays}
-            onUpdateUser={(updatedUser) => {
-              setUser(updatedUser);
-              localStorage.setItem('timings_user', JSON.stringify(updatedUser));
+            onUpdateUser={async (updatedUser) => {
+              useRoutineStore.setState({ user: updatedUser });
+              const { data: authSession } = await supabase.auth.getSession();
+              if (authSession?.session?.user) {
+                await supabase
+                  .from('profiles')
+                  .update({ name: updatedUser.name })
+                  .eq('id', authSession.session.user.id);
+              } else {
+                localStorage.setItem('timings_user', JSON.stringify(updatedUser));
+              }
             }}
             onResetApp={() => {
               localStorage.removeItem('timings_saved_routines');
@@ -258,31 +194,61 @@ export default function App() {
           />
         );
       default:
-        return <LandingPage onStart={() => setCurrentScreen('routines')} onNavigate={setCurrentScreen} onTryPreset={handleTryPresetOnLanding} />;
+        return <LandingPage onStart={() => setCurrentScreen('routines')} onNavigate={setCurrentScreen} onTryPreset={tryPresetOnLanding} />;
     }
   };
 
   // High Level Layout Outer shell switcher page frames
   if (currentScreen === 'landing') {
-    return <LandingPage onStart={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} onTryPreset={handleTryPresetOnLanding} />;
+    return <LandingPage onStart={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} onTryPreset={tryPresetOnLanding} />;
   }
 
   if (currentScreen === 'auth') {
-    return <AuthScreen onLoginSuccess={handleLoginSuccess} onBackToLanding={() => setCurrentScreen('landing')} />;
+    return <AuthScreen onLoginSuccess={onLoginSuccess} onBackToLanding={() => setCurrentScreen('landing')} />;
   }
 
   if (currentScreen === 'timer' && activeRoutine) {
-    return <TimerScreen routine={activeRoutine} onClose={handleTimerFinished} />;
+    return <TimerScreen routine={activeRoutine} onClose={timerFinished} />;
   }
 
   return (
     <div className="flex bg-background text-on-surface min-h-screen text-sans select-none relative pb-16 md:pb-0">
+      {/* Toast Notification for Email Confirmation */}
+      <AnimatePresence>
+        {showEmailConfirmedAlert && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            className="fixed top-6 left-1/2 z-[100] w-full max-w-md px-4"
+          >
+            <div className="bg-surface-container-high border border-emerald-500/30 text-white rounded-2xl p-4 shadow-2xl backdrop-blur-md flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-emerald-400 font-sans">Email Confirmed!</h4>
+                  <p className="text-xs text-on-surface-variant font-sans mt-0.5">Your account has been successfully verified.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => useRoutineStore.setState({ showEmailConfirmedAlert: false })}
+                className="text-on-surface-variant hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Left sidebar nav container */}
       <Sidebar
         currentScreen={currentScreen}
         onNavigate={setCurrentScreen}
         user={user}
-        onLogout={handleLogout}
+        onLogout={logout}
       />
 
       {/* Primary body screen section */}
@@ -292,3 +258,4 @@ export default function App() {
     </div>
   );
 }
+

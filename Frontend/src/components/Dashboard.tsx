@@ -209,7 +209,7 @@ export default function Dashboard({
             <div className="space-y-1">
               <h4 className="font-sans font-bold text-sm text-on-surface group-hover:text-primary-container transition-colors">Conductor Profile</h4>
               <p className="text-[11px] font-mono text-outline uppercase tracking-wider">
-                {user ? user.email : 'samudrala.santhosh.19cse@bmu.edu.in'}
+                {user ? user.email : 'guest@timings.app'}
               </p>
             </div>
             <p className="text-xs font-sans text-on-surface-variant leading-relaxed">

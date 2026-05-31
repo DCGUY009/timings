@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Mail, Lock, ArrowRight, UserCircle, CheckCircle, Smartphone } from 'lucide-react';
+import { Mail, Lock, ArrowRight, UserCircle, CheckCircle } from 'lucide-react';
 import { User } from '../types';
+import { supabase } from '../utils/supabaseClient';
 
 interface AuthScreenProps {
   onLoginSuccess: (user: User) => void;
@@ -10,24 +11,80 @@ interface AuthScreenProps {
 
 export default function AuthScreen({ onLoginSuccess, onBackToLanding }: AuthScreenProps) {
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
-  const [email, setEmail] = useState('samudrala.santhosh.19cse@bmu.edu.in'); 
-  const [password, setPassword] = useState('••••••••');
-  const [name, setName] = useState('Santhosh');
+  const [email, setEmail] = useState(''); 
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [showGoogleChooser, setShowGoogleChooser] = useState(false);
   const [customGoogleEmail, setCustomGoogleEmail] = useState('');
   const [customGoogleName, setCustomGoogleName] = useState('');
   const [isAddingGoogleAccount, setIsAddingGoogleAccount] = useState(false);
+  const [verificationSent, setVerificationSent] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSuccessMsg(`Welcome back, ${name}! Redirecting to console...`);
-    setTimeout(() => {
-      onLoginSuccess({
-        email: email || 'user@domain.com',
-        name: name || 'Santhosh',
+    setErrorMsg('');
+    setIsLoading(true);
+
+    if (activeTab === 'login') {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
-    }, 1200);
+
+      if (error) {
+        setErrorMsg(error.message);
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        setSuccessMsg(`Welcome back! Redirecting to console...`);
+        setTimeout(() => {
+          onLoginSuccess({
+            email: data.user!.email || email,
+            name: data.user!.user_metadata?.name || email.split('@')[0]
+          });
+        }, 1000);
+      }
+    } else {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name
+          },
+          emailRedirectTo: window.location.origin
+        }
+      });
+
+      if (error) {
+        setErrorMsg(error.message);
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        if (!data.session) {
+          // Email confirmation is required, session is null
+          setVerificationSent(email);
+          setIsLoading(false);
+        } else {
+          // Email confirmation is disabled, session exists
+          setSuccessMsg(`Account created! Redirecting to console...`);
+          setTimeout(() => {
+            onLoginSuccess({
+              email: data.user!.email || email,
+              name: name
+            });
+          }, 1000);
+        }
+      }
+    }
   };
 
   const handleGoogleLogin = (selectedName: string, selectedEmail: string) => {
@@ -36,7 +93,7 @@ export default function AuthScreen({ onLoginSuccess, onBackToLanding }: AuthScre
     setTimeout(() => {
       onLoginSuccess({
         email: selectedEmail,
-        name: selectedName,
+        name: selectedName
       });
     }, 1200);
   };
@@ -85,7 +142,31 @@ export default function AuthScreen({ onLoginSuccess, onBackToLanding }: AuthScre
           </button>
         </div>
 
-        {successMsg ? (
+        {verificationSent ? (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center justify-center py-8 text-center"
+          >
+            <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 mb-6 pulse-border rounded-full p-2 flex items-center justify-center">
+              <Mail className="w-8 h-8 animate-pulse" />
+            </div>
+            <h3 className="font-sans font-bold text-xl text-emerald-400 mb-3">Verification Email Sent</h3>
+            <p className="text-body-md text-on-surface-variant font-mono mb-6 leading-relaxed max-w-sm">
+              We have sent a confirmation link to <span className="text-white font-semibold">{verificationSent}</span>. Please click the link to activate your account.
+            </p>
+            <button
+              onClick={() => {
+                setVerificationSent(null);
+                setActiveTab('login');
+                setPassword('');
+              }}
+              className="w-full bg-primary-container hover:bg-white text-on-primary-container font-sans font-bold text-body-md py-4 rounded-xl transition-all cursor-pointer glow-button shadow-cyan-500/10 active:scale-[0.98]"
+            >
+              Back to Log In
+            </button>
+          </motion.div>
+        ) : successMsg ? (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -97,6 +178,11 @@ export default function AuthScreen({ onLoginSuccess, onBackToLanding }: AuthScre
           </motion.div>
         ) : (
           <div className="space-y-5">
+            {errorMsg && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-sans rounded-xl p-3.5 mb-4">
+                {errorMsg}
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-5">
               {activeTab === 'signup' && (
                 <div>
@@ -173,9 +259,19 @@ export default function AuthScreen({ onLoginSuccess, onBackToLanding }: AuthScre
 
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-2 bg-primary-container hover:bg-white text-on-primary-container font-sans font-bold text-body-md py-4 rounded-xl transition-all cursor-pointer glow-button shadow-cyan-500/10 mt-6 active:scale-[0.98]"
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2 bg-primary-container hover:bg-white disabled:bg-surface-container-low disabled:text-outline text-on-primary-container font-sans font-bold text-body-md py-4 rounded-xl transition-all cursor-pointer glow-button shadow-cyan-500/10 mt-6 active:scale-[0.98]"
               >
-                Access Console <ArrowRight className="w-4 h-4" />
+                {isLoading ? (
+                  <>
+                    <span className="w-4 h-4 rounded-full border-2 border-on-primary-container border-t-transparent animate-spin"></span>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    Access Console <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
 
@@ -290,22 +386,22 @@ export default function AuthScreen({ onLoginSuccess, onBackToLanding }: AuthScre
                   </form>
                 ) : (
                   <div className="space-y-2.5">
-                    {/* Santhosh active account block */}
+                    {/* Demo active account block */}
                     <button
-                      onClick={() => handleGoogleLogin('Santhosh', 'samudrala.santhosh.19cse@bmu.edu.in')}
+                      onClick={() => handleGoogleLogin('Demo Conductor', 'demo.user@gmail.com')}
                       className="w-full flex items-center justify-between text-left p-3.5 rounded-xl border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all cursor-pointer group"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-600 text-sm">
-                          S
+                          D
                         </div>
                         <div>
-                          <span className="font-bold text-sm text-gray-800 block">Santhosh</span>
-                          <span className="text-xs font-mono text-gray-500 block">samudrala.santhosh.19cse@bmu.edu.in</span>
+                          <span className="font-bold text-sm text-gray-800 block">Demo Conductor</span>
+                          <span className="text-xs font-mono text-gray-500 block">demo.user@gmail.com</span>
                         </div>
                       </div>
                       <span className="text-[10px] bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-md font-mono font-bold uppercase tracking-wider group-hover:bg-blue-100">
-                        Default
+                        Demo
                       </span>
                     </button>
 
