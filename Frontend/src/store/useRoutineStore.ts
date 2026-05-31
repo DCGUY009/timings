@@ -53,8 +53,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
                            hashParams.get('type') === 'signup' || 
                            hashParams.has('access_token');
 
-    // Set up auth state listener
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    const handleUserSession = async (session: any) => {
       try {
         if (session?.user) {
           const email = session.user.email || '';
@@ -109,8 +108,28 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
           });
         }
       } catch (err) {
-        console.error('Error in onAuthStateChange callback:', err);
+        console.error('Error in session handler:', err);
         set({ isLoading: false });
+      }
+    };
+
+    // Get initial session synchronously/asynchronously from localStorage cache
+    let initialSession = null;
+    try {
+      const { data } = await supabase.auth.getSession();
+      initialSession = data?.session;
+    } catch (e) {
+      console.error('Error getting initial session:', e);
+    }
+
+    // Process initial session state immediately
+    await handleUserSession(initialSession);
+
+    // Set up auth state listener for future changes
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      // Process events that change auth state (SIGNED_IN, SIGNED_OUT, USER_UPDATED)
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        await handleUserSession(session);
       }
     });
   },
