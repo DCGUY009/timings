@@ -38,7 +38,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
   checklist: [],
   history: [],
   activeRoutine: null,
-  streakDays: 5,
+  streakDays: 0,
   isLoading: true,
   showEmailConfirmedAlert: false,
 
@@ -80,7 +80,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
 
           set({ 
             user: loggedInUser,
-            streakDays: profile?.streak_days || 5
+            streakDays: profile?.streak_days ?? 0
           });
 
           // Load data from Supabase
@@ -103,7 +103,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
             routines: savedRoutines ? JSON.parse(savedRoutines) : [...DEFAULT_ROUTINES],
             checklist: savedChecklist ? JSON.parse(savedChecklist) : [...DEFAULT_CHECKLIST],
             history: savedHistory ? JSON.parse(savedHistory) : [...DEFAULT_HISTORY],
-            streakDays: 5,
+            streakDays: 0,
             isLoading: false
           });
         }
@@ -390,7 +390,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       routines: [...DEFAULT_ROUTINES],
       checklist: [...DEFAULT_CHECKLIST],
       history: [...DEFAULT_HISTORY],
-      streakDays: 5,
+      streakDays: 0,
       activeRoutine: null
     });
   },

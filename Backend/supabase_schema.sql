@@ -11,7 +11,7 @@ create table public.profiles (
   name text not null,
   email text not null,
   is_pro boolean not null default false,
-  streak_days integer not null default 5,
+  streak_days integer not null default 0,
   avatar_id text not null default 'avatar-1',
   created_at timestamp with time zone not null default now(),
   updated_at timestamp with time zone not null default now()
@@ -106,7 +106,7 @@ begin
     coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
     new.email,
     false,
-    5,
+    0,
     'avatar-1'
   );
   return new;
