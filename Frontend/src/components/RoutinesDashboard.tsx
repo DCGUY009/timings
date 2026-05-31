@@ -215,7 +215,7 @@ export default function RoutinesDashboard({
         </AnimatePresence>
       </div>
 
-      {filteredRoutines.length === 0 && (
+      {filteredRoutines.length === 0 && routines.length > 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center text-on-surface-variant">
           <Library className="w-12 h-12 text-outline/50 mb-3" />
           <p className="text-sm font-sans font-medium">No matching routines found.</p>

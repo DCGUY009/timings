@@ -16,16 +16,50 @@ export default function HistoryDashboard({
 }: HistoryDashboardProps) {
   const [hoveredBar, setHoveredBar] = useState<number | null>(null);
 
-  // Hardcode weekly hours stats matching image 4 mockup exactly
-  const weeklyActivityData = [
-    { day: 'Mon', h: 2.2, pct: 60 },
-    { day: 'Tue', h: 3.8, pct: 100 },
-    { day: 'Wed', h: 1.4, pct: 40 },
-    { day: 'Thu', h: 3.2, pct: 85 },
-    { day: 'Fri', h: 2.9, pct: 75 },
-    { day: 'Sat', h: 0.1, pct: 5 },
-    { day: 'Sun', h: 0.4, pct: 12 },
-  ];
+  // Calculate weekly activity dynamically from the history logs
+  const getWeeklyData = () => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const weeklyData = days.map(day => ({ day, h: 0, pct: 0 }));
+    
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    const currentDay = startOfWeek.getDay();
+    // Monday as start of week: diff to Monday
+    const diff = startOfWeek.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    history.forEach(item => {
+      try {
+        const datePart = item.timestamp.split('•')[0].trim();
+        const date = new Date(datePart);
+        if (!isNaN(date.getTime())) {
+          if (date >= startOfWeek && date <= endOfWeek) {
+            const dayIndex = (date.getDay() + 6) % 7; // Monday = 0, ..., Sunday = 6
+            weeklyData[dayIndex].h += item.durationMinutes / 60;
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing session date:', e);
+      }
+    });
+
+    // Determine max hours to scale percentage, default min scale of 4 hours
+    const maxHours = Math.max(...weeklyData.map(d => d.h), 4);
+    weeklyData.forEach(d => {
+      d.h = parseFloat(d.h.toFixed(1));
+      d.pct = maxHours > 0 ? Math.round((d.h / maxHours) * 100) : 0;
+    });
+
+    return weeklyData;
+  };
+
+  const weeklyActivityData = getWeeklyData();
+  const totalWeeklyHours = parseFloat(weeklyActivityData.reduce((sum, d) => sum + d.h, 0).toFixed(1));
 
   // Derive stats dynamically based on the history log
   const totalSessionsCount = history.length;
@@ -142,7 +176,7 @@ export default function HistoryDashboard({
             Weekly Activity
           </h3>
           <span className="text-xs font-mono font-bold text-primary-container bg-primary-container/10 border border-primary-container/15 px-3 py-1 rounded-full uppercase tracking-wider">
-            12.5 hrs this week
+            {totalWeeklyHours} hrs this week
           </span>
         </div>
 
