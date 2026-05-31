@@ -106,13 +106,6 @@ export default function App() {
     setCurrentScreen('dashboard');
   };
 
-  const tryPresetOnLanding = (presetId: string) => {
-    const matched = routines.find((r) => r.id === presetId);
-    if (matched) {
-      startRoutine(matched);
-    }
-  };
-
   // Render a loading state during the initial Supabase session verification
   if (isLoading) {
     return (
@@ -201,13 +194,13 @@ export default function App() {
           />
         );
       default:
-        return <LandingPage onStart={() => setCurrentScreen('routines')} onNavigate={setCurrentScreen} onTryPreset={tryPresetOnLanding} />;
+        return <LandingPage onStart={() => setCurrentScreen('routines')} onNavigate={setCurrentScreen} />;
     }
   };
 
   // High Level Layout Outer shell switcher page frames
   if (currentScreen === 'landing') {
-    return <LandingPage onStart={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} onTryPreset={tryPresetOnLanding} />;
+    return <LandingPage onStart={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
   }
 
   if (currentScreen === 'auth') {

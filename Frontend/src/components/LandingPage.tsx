@@ -2,15 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Volume2, Copy, Play, ArrowRight, Clock, Star, BrainCircuit } from 'lucide-react';
 import { ActiveScreen } from '../types';
+import InfoModal from './InfoModal';
 
 interface LandingPageProps {
   onStart: () => void;
   onNavigate: (screen: ActiveScreen) => void;
-  onTryPreset: (presetId: string) => void;
 }
 
-export default function LandingPage({ onStart, onNavigate, onTryPreset }: LandingPageProps) {
+export default function LandingPage({ onStart, onNavigate }: LandingPageProps) {
   const [secondsLeft, setSecondsLeft] = useState(21); // 21 seconds focus countdown
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    defaultTab: 'privacy' | 'terms' | 'contact';
+  }>({
+    isOpen: false,
+    defaultTab: 'privacy',
+  });
+
+  const openInfoModal = (tab: 'privacy' | 'terms' | 'contact') => {
+    setModalState({
+      isOpen: true,
+      defaultTab: tab,
+    });
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -184,11 +198,10 @@ export default function LandingPage({ onStart, onNavigate, onTryPreset }: Landin
           {architectures.map((arch) => (
             <div 
               key={arch.id}
-              onClick={() => onTryPreset(arch.id)}
-              className={`group relative overflow-hidden bg-surface-container-high border rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between cursor-pointer transition-all duration-300 ${
+              className={`group relative overflow-hidden bg-surface-container-high border rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between transition-all duration-300 ${
                 arch.isActive 
-                  ? 'border-primary-container/80 pulse-border glow-active translate-x-1' 
-                  : 'border-outline-variant/20 opacity-70 hover:opacity-100 hover:border-primary-container/35'
+                  ? 'border-primary-container/80 pulse-border glow-active' 
+                  : 'border-outline-variant/20 opacity-70'
               }`}
             >
               {arch.isActive && (
@@ -213,9 +226,9 @@ export default function LandingPage({ onStart, onNavigate, onTryPreset }: Landin
                 <div className={`font-mono text-4xl md:text-5xl font-bold tracking-tighter ${arch.isActive ? 'text-primary-container' : 'text-on-surface-variant/40'}`}>
                   {arch.duration}
                 </div>
-                <button className="p-3.5 bg-surface-container-highest rounded-full border border-outline-variant/40 hover:bg-primary-container hover:text-on-primary-container hover:border-primary-container transition-all text-primary-container shadow-md cursor-pointer group-hover:scale-105">
+                <div className="p-3.5 bg-surface-container-highest rounded-full border border-outline-variant/40 text-primary-container/60 shadow-md">
                   <Play className="w-4 h-4 fill-current" />
-                </button>
+                </div>
               </div>
             </div>
           ))}
@@ -229,22 +242,40 @@ export default function LandingPage({ onStart, onNavigate, onTryPreset }: Landin
             <span className="font-sans font-bold text-sm tracking-widest text-on-surface uppercase">
               TIMINGS
             </span>
-            <span className="text-xs text-outline font-mono mt-1">
-              High-Precision Practice Companion
-            </span>
           </div>
           
           <div className="flex space-x-8 text-sm font-mono">
-            <a href="#" className="text-outline hover:text-on-surface transition-colors">Privacy</a>
-            <a href="#" className="text-outline hover:text-on-surface transition-colors">Terms</a>
-            <a href="#" className="text-outline hover:text-on-surface transition-colors">Contact</a>
+            <button 
+              onClick={() => openInfoModal('privacy')} 
+              className="text-outline hover:text-on-surface transition-colors cursor-pointer"
+            >
+              Privacy
+            </button>
+            <button 
+              onClick={() => openInfoModal('terms')} 
+              className="text-outline hover:text-on-surface transition-colors cursor-pointer"
+            >
+              Terms
+            </button>
+            <button 
+              onClick={() => openInfoModal('contact')} 
+              className="text-outline hover:text-on-surface transition-colors cursor-pointer"
+            >
+              Contact
+            </button>
           </div>
 
           <div className="text-xs text-outline font-mono text-center md:text-right">
-            &copy; {new Date().getFullYear()} Timings. High-Precision Rhythm. Built to Conductor specs.
+            &copy; {new Date().getFullYear()} Timings.
           </div>
         </div>
       </footer>
+
+      <InfoModal
+        isOpen={modalState.isOpen}
+        defaultTab={modalState.defaultTab}
+        onClose={() => setModalState((prev) => ({ ...prev, isOpen: false }))}
+      />
     </motion.div>
   );
 }

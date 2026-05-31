@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, ArrowRight, UserCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { User } from '../types';
 import { supabase } from '../utils/supabaseClient';
+import InfoModal from './InfoModal';
 
 interface AuthScreenProps {
   onLoginSuccess: (user: User) => void;
@@ -10,6 +11,20 @@ interface AuthScreenProps {
 }
 
 export default function AuthScreen({ onLoginSuccess, onBackToLanding }: AuthScreenProps) {
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    defaultTab: 'privacy' | 'terms' | 'contact';
+  }>({
+    isOpen: false,
+    defaultTab: 'privacy',
+  });
+
+  const openInfoModal = (tab: 'privacy' | 'terms' | 'contact') => {
+    setModalState({
+      isOpen: true,
+      defaultTab: tab,
+    });
+  };
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState(''); 
   const [password, setPassword] = useState('');
@@ -320,14 +335,33 @@ export default function AuthScreen({ onLoginSuccess, onBackToLanding }: AuthScre
 
       {/* Sub Footer links */}
       <div className="flex space-x-6 mt-8 text-xs font-mono text-outline">
-        <a href="#" className="hover:text-on-surface transition-colors">Privacy</a>
+        <button 
+          onClick={() => openInfoModal('privacy')} 
+          className="hover:text-on-surface transition-colors cursor-pointer"
+        >
+          Privacy
+        </button>
         <span>•</span>
-        <a href="#" className="hover:text-on-surface transition-colors">Terms</a>
+        <button 
+          onClick={() => openInfoModal('terms')} 
+          className="hover:text-on-surface transition-colors cursor-pointer"
+        >
+          Terms
+        </button>
         <span>•</span>
-        <a href="#" className="hover:text-on-surface transition-colors">Contact</a>
+        <button 
+          onClick={() => openInfoModal('contact')} 
+          className="hover:text-on-surface transition-colors cursor-pointer"
+        >
+          Contact
+        </button>
       </div>
 
-
+      <InfoModal
+        isOpen={modalState.isOpen}
+        defaultTab={modalState.defaultTab}
+        onClose={() => setModalState((prev) => ({ ...prev, isOpen: false }))}
+      />
     </motion.div>
   );
 }
