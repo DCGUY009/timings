@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@supabase/supabase-js": ["../../Frontend/node_modules/@supabase/supabase-js"],
+      "zustand": ["../../Frontend/node_modules/zustand"],
+      "../src/types": ["../../Frontend/src/types"],
+      "../src/data/defaultRoutines": ["../../Frontend/src/data/defaultRoutines"],
+      "../types": ["../../Frontend/src/types"],
+      "../data/defaultRoutines": ["../../Frontend/src/data/defaultRoutines"]
+    }
+  },
+  "include": ["**/*.ts"]
+}

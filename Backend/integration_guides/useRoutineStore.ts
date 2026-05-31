@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from './supabaseClient';
-import { Routine, SessionHistoryItem, ChecklistItem, User, PracticeStep } from '../src/types';
-import { DEFAULT_ROUTINES, DEFAULT_CHECKLIST, DEFAULT_HISTORY } from '../src/data/defaultRoutines';
+import { Routine, SessionHistoryItem, ChecklistItem, User } from '../../Frontend/src/types';
+import { DEFAULT_ROUTINES, DEFAULT_CHECKLIST, DEFAULT_HISTORY } from '../../Frontend/src/data/defaultRoutines';
 
 interface RoutineState {
   // State
@@ -36,6 +36,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
   routines: [],
   checklist: [],
   history: [],
+  activeRoutine: null,
   streakDays: 0,
   isLoading: true,
 
