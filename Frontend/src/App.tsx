@@ -65,6 +65,28 @@ export default function App() {
     }
   }, [user, currentScreen]);
 
+  // Update browser tab heading (document title) based on the active screen
+  useEffect(() => {
+    const screenTitles: Record<ActiveScreen, string> = {
+      landing: 'Timings',
+      auth: 'Authentication',
+      dashboard: 'Dashboard',
+      routines: 'Routines',
+      history: 'History',
+      settings: 'Settings',
+      timer: 'Timer',
+      'edit-routine': 'Edit Routine',
+      profile: 'Profile',
+    };
+
+    const pageTitle = screenTitles[currentScreen];
+    if (currentScreen === 'landing') {
+      document.title = 'Timings';
+    } else {
+      document.title = `${pageTitle} | Timings`;
+    }
+  }, [currentScreen]);
+
   const startRoutine = (routine: Routine) => {
     handleStartRoutine(routine);
     setCurrentScreen('timer');
