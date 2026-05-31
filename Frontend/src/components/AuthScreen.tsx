@@ -36,7 +36,8 @@ export default function AuthScreen({ onLoginSuccess, onBackToLanding }: AuthScre
       });
 
       if (error) {
-        setErrorMsg(error.message);
+        console.error("Supabase Auth Signin Error Details:", error);
+        setErrorMsg(`${error.message} (Status: ${error.status || 'unknown'})`);
         setIsLoading(false);
         return;
       }
@@ -63,7 +64,8 @@ export default function AuthScreen({ onLoginSuccess, onBackToLanding }: AuthScre
       });
 
       if (error) {
-        setErrorMsg(error.message);
+        console.error("Supabase Auth Signup Error Details:", error);
+        setErrorMsg(`${error.message} (Status: ${error.status || 'unknown'})`);
         setIsLoading(false);
         return;
       }
