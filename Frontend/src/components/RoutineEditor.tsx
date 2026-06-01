@@ -174,6 +174,12 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
 
   const handleSaveRoutine = () => {
     if (!name.trim()) return;
+
+    if (steps.length === 0) {
+      alert('A routine must contain at least one step.');
+      return;
+    }
+
     const finalCategory = isCustomCategory
       ? (customCategoryInput.trim() || 'Custom')
       : category;
