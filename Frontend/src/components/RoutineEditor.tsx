@@ -1276,24 +1276,28 @@ function InteractiveWaveTrimmer({
         </span>
       </div>
 
+      {/* Outer container with no overflow-hidden, so handles can overflow the edges by 6px */}
       <div
         ref={containerRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        className={`relative h-20 bg-surface-container-lowest/80 border border-outline-variant/35 rounded-xl overflow-hidden cursor-ew-resize touch-none transition-opacity ${
+        className={`relative h-20 cursor-ew-resize touch-none transition-opacity ${
           isProcessing ? 'opacity-50 pointer-events-none' : ''
         }`}
       >
-        <div className="absolute inset-0 opacity-5 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:10px_10px] pointer-events-none" />
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none p-2" />
+        {/* Inner track with rounded corners and overflow-hidden */}
+        <div className="absolute inset-0 bg-surface-container-lowest/80 border border-outline-variant/35 rounded-xl overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 opacity-5 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:10px_10px]" />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full p-2" />
+        </div>
 
         {/* Start Handle Line and Knob */}
         <div
           className="absolute inset-y-0 w-[2px] bg-[#00f0ff] shadow-[0_0_8px_#00f0ff] z-20 pointer-events-none"
           style={{ left: `${startPercent}%` }}
         >
-          <div className="absolute top-1/2 -translate-y-1/2 -left-[5px] w-3 h-3 rounded-full bg-[#00f0ff] border border-[#0b1326] shadow-[0_0_8px_rgba(0,240,255,0.6)] pointer-events-none" />
+          <div className="absolute top-1/2 -translate-y-1/2 -left-[5px] w-3 h-3 rounded-full bg-[#00f0ff] border border-[#0b1326] shadow-[0_0_8px_rgba(0,240,255,0.6)]" />
         </div>
 
         {/* End Handle Line and Knob */}
@@ -1301,7 +1305,7 @@ function InteractiveWaveTrimmer({
           className="absolute inset-y-0 w-[2px] bg-[#00f0ff] shadow-[0_0_8px_#00f0ff] z-20 pointer-events-none"
           style={{ left: `${endPercent}%` }}
         >
-          <div className="absolute top-1/2 -translate-y-1/2 -left-[5px] w-3 h-3 rounded-full bg-[#00f0ff] border border-[#0b1326] shadow-[0_0_8px_rgba(0,240,255,0.6)] pointer-events-none" />
+          <div className="absolute top-1/2 -translate-y-1/2 -left-[5px] w-3 h-3 rounded-full bg-[#00f0ff] border border-[#0b1326] shadow-[0_0_8px_rgba(0,240,255,0.6)]" />
         </div>
       </div>
     </div>

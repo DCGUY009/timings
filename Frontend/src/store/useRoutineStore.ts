@@ -277,8 +277,14 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       console.log('[fetchData] Session history fetched successfully. Count:', dbHistory?.length || 0);
 
       // --- SEED DATABASE IF NEW USER (0 ROUTINES IN CLOUD) ---
-      if (!dbRoutines || dbRoutines.length === 0) {
+      const alreadySeeded = localStorage.getItem(`timings_seeded_${userId}`) === 'true';
+      const hasSomeData = (dbRoutines && dbRoutines.length > 0) || 
+                          (dbChecklist && dbChecklist.length > 0) || 
+                          (dbHistory && dbHistory.length > 0);
+
+      if ((!dbRoutines || dbRoutines.length === 0) && !alreadySeeded && !hasSomeData) {
         console.log('[fetchData] New user detected (0 cloud routines). Seeding defaults...');
+        localStorage.setItem(`timings_seeded_${userId}`, 'true');
         
         // Seed default routines
         for (const routine of DEFAULT_ROUTINES) {
@@ -385,8 +391,11 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
 
         // Re-run fetchData to fetch the newly seeded items from DB
         return get().fetchData(userId);
+      } else {
+        // Mark as seeded in local storage since they already have routines/history
+        localStorage.setItem(`timings_seeded_${userId}`, 'true');
       }
-      // --------------------------------------------------------
+      // ------------------------------------------------------------
 
       const formattedRoutines: Routine[] = (dbRoutines || []).map((r: any) => ({
         id: r.id,
@@ -505,107 +514,128 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
   },
 
   handleSaveEditedRoutine: async (savedRoutine) => {
-    const { routines, user } = get();
-    if (!user) return;
+    try {
+      const { routines, user } = get();
+      if (!user) return;
 
-    let updatedRoutines: Routine[] = [];
-    const exists = routines.some((r) => r.id === savedRoutine.id);
-
-    if (exists) {
-      updatedRoutines = routines.map((r) => r.id === savedRoutine.id ? savedRoutine : r);
-    } else {
-      updatedRoutines = [...routines, savedRoutine];
-    }
-
-    set({ routines: updatedRoutines });
-
-    const { data: authUser, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !authUser.user) {
-      console.error('[handleSaveEditedRoutine] Auth error:', authErr || 'No user session');
-      return;
-    }
-
-    console.log('[handleSaveEditedRoutine] Saving routine to database...', savedRoutine.id);
-
-    // 1. Upsert routine
-    const { error: routineErr } = await supabase.from('routines').upsert({
-      id: savedRoutine.id,
-      user_id: authUser.user.id,
-      name: savedRoutine.name,
-      description: savedRoutine.description,
-      category: savedRoutine.category,
-      last_executed: savedRoutine.lastExecuted,
-      ticking_sound_enabled: savedRoutine.tickingSoundEnabled ?? true
-    });
-    if (routineErr) {
-      console.error('[handleSaveEditedRoutine] Supabase upsert routine failed:', routineErr.message, routineErr.details);
-    }
-
-    // 2. Refresh steps (Delete existing steps and insert new ones)
-    const { error: delStepsErr } = await supabase.from('routine_steps').delete().eq('routine_id', savedRoutine.id);
-    if (delStepsErr) {
-      console.error('[handleSaveEditedRoutine] Supabase delete steps failed:', delStepsErr.message, delStepsErr.details);
-    }
-    if (savedRoutine.steps.length > 0) {
-      const { error: insStepsErr } = await supabase.from('routine_steps').insert(
-        savedRoutine.steps.map((step, idx) => ({
-          id: step.id,
-          routine_id: savedRoutine.id,
-          name: step.name,
-          description: step.description,
-          duration: step.duration,
-          cue: step.cue,
-          type: step.type,
-          position: idx,
-          step_format: step.stepFormat || 'duration',
-          sets: step.sets || 1,
-          reps: step.reps || 1,
-          rep_pace: step.repPace || 3.0,
-          audio_base64: step.audioData || null
-        }))
-      );
-      if (insStepsErr) {
-        console.error('[handleSaveEditedRoutine] Supabase insert steps failed:', insStepsErr.message, insStepsErr.details);
+      const { data: authUser, error: authErr } = await supabase.auth.getUser();
+      if (authErr || !authUser.user) {
+        throw new Error(authErr?.message || 'No active user session found.');
       }
-    }
 
-    // 3. Refresh checklist items
-    const { error: delCheckErr } = await supabase.from('routine_checklist_items').delete().eq('routine_id', savedRoutine.id);
-    if (delCheckErr) {
-      console.error('[handleSaveEditedRoutine] Supabase delete checklist failed:', delCheckErr.message, delCheckErr.details);
-    }
-    if (savedRoutine.checklist && savedRoutine.checklist.length > 0) {
-      const { error: insCheckErr } = await supabase.from('routine_checklist_items').insert(
-        savedRoutine.checklist.map((item, idx) => ({
-          id: item.id,
-          routine_id: savedRoutine.id,
-          label: item.label,
-          checked: item.checked,
-          position: idx
-        }))
-      );
-      if (insCheckErr) {
-        console.error('[handleSaveEditedRoutine] Supabase insert checklist failed:', insCheckErr.message, insCheckErr.details);
+      console.log('[handleSaveEditedRoutine] Saving routine to database...', savedRoutine.id);
+
+      // 1. Upsert routine
+      const { error: routineErr } = await supabase.from('routines').upsert({
+        id: savedRoutine.id,
+        user_id: authUser.user.id,
+        name: savedRoutine.name,
+        description: savedRoutine.description,
+        category: savedRoutine.category,
+        last_executed: savedRoutine.lastExecuted,
+        ticking_sound_enabled: savedRoutine.tickingSoundEnabled ?? true
+      });
+      if (routineErr) {
+        throw new Error(`Routine upsert failed: ${routineErr.message}`);
       }
+
+      // 2. Refresh steps (Delete existing steps and insert new ones)
+      const { error: delStepsErr } = await supabase.from('routine_steps').delete().eq('routine_id', savedRoutine.id);
+      if (delStepsErr) {
+        throw new Error(`Steps clean failed: ${delStepsErr.message}`);
+      }
+      if (savedRoutine.steps.length > 0) {
+        const { error: insStepsErr } = await supabase.from('routine_steps').insert(
+          savedRoutine.steps.map((step, idx) => ({
+            id: step.id,
+            routine_id: savedRoutine.id,
+            name: step.name,
+            description: step.description,
+            duration: step.duration,
+            cue: step.cue,
+            type: step.type,
+            position: idx,
+            step_format: step.stepFormat || 'duration',
+            sets: step.sets || 1,
+            reps: step.reps || 1,
+            rep_pace: step.repPace || 3.0,
+            audio_base64: step.audioData || null
+          }))
+        );
+        if (insStepsErr) {
+          throw new Error(`Steps insert failed: ${insStepsErr.message}`);
+        }
+      }
+
+      // 3. Refresh checklist items
+      const { error: delCheckErr } = await supabase.from('routine_checklist_items').delete().eq('routine_id', savedRoutine.id);
+      if (delCheckErr) {
+        throw new Error(`Checklist clean failed: ${delCheckErr.message}`);
+      }
+      if (savedRoutine.checklist && savedRoutine.checklist.length > 0) {
+        const { error: insCheckErr } = await supabase.from('routine_checklist_items').insert(
+          savedRoutine.checklist.map((item, idx) => ({
+            id: item.id,
+            routine_id: savedRoutine.id,
+            label: item.label,
+            checked: item.checked,
+            position: idx
+          }))
+        );
+        if (insCheckErr) {
+          throw new Error(`Checklist insert failed: ${insCheckErr.message}`);
+        }
+      }
+
+      // Sync local state ONLY after successful database transactional write
+      let updatedRoutines: Routine[] = [];
+      const exists = routines.some((r) => r.id === savedRoutine.id);
+
+      if (exists) {
+        updatedRoutines = routines.map((r) => r.id === savedRoutine.id ? savedRoutine : r);
+      } else {
+        updatedRoutines = [...routines, savedRoutine];
+      }
+
+      set({ routines: updatedRoutines });
+
+    } catch (err: any) {
+      console.error('[handleSaveEditedRoutine] Failed to save routine:', err);
+      alert(`Error saving routine: ${err.message || err}`);
+      throw err; // Prevent editor navigation so changes aren't silently lost
     }
   },
 
   handleDeleteRoutine: async (id) => {
-    const { routines, user } = get();
-    if (!user) return;
+    try {
+      const { routines, user } = get();
+      if (!user) return;
 
-    const updated = routines.filter((r) => r.id !== id);
-    set({ routines: updated });
+      console.log('[handleDeleteRoutine] Deleting child steps and checklist items for routine:', id);
+      // Delete child rows first to satisfy foreign key constraints
+      const { error: stepErr } = await supabase.from('routine_steps').delete().eq('routine_id', id);
+      if (stepErr) {
+        throw new Error(`Steps deletion failed: ${stepErr.message}`);
+      }
 
-    console.log('[handleDeleteRoutine] Deleting child steps and checklist items for routine:', id);
-    // Delete child rows first to avoid foreign key constraint violations in Supabase
-    await supabase.from('routine_steps').delete().eq('routine_id', id);
-    await supabase.from('routine_checklist_items').delete().eq('routine_id', id);
+      const { error: checkErr } = await supabase.from('routine_checklist_items').delete().eq('routine_id', id);
+      if (checkErr) {
+        throw new Error(`Checklist deletion failed: ${checkErr.message}`);
+      }
 
-    console.log('[handleDeleteRoutine] Deleting routine row for:', id);
-    const { error } = await supabase.from('routines').delete().eq('id', id);
-    if (error) {
-      console.error('[handleDeleteRoutine] Supabase delete routine failed:', error.message, error.details);
+      console.log('[handleDeleteRoutine] Deleting routine row for:', id);
+      const { error: routineErr } = await supabase.from('routines').delete().eq('id', id);
+      if (routineErr) {
+        throw new Error(`Routine deletion failed: ${routineErr.message}`);
+      }
+
+      // Sync local state ONLY after successful database delete
+      const updated = routines.filter((r) => r.id !== id);
+      set({ routines: updated });
+
+    } catch (err: any) {
+      console.error('[handleDeleteRoutine] Failed to delete routine:', err);
+      alert(`Error deleting routine: ${err.message || err}`);
     }
   },
 
