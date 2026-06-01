@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Trash2, Plus, GripVertical, Save, ArrowLeft, Check, Play, ChevronUp, ChevronDown } from 'lucide-react';
 import { Routine, PracticeStep, CueType, StepType, ChecklistItem } from '../types';
 import { DEFAULT_CHECKLIST } from '../data/defaultRoutines';
+import { generateUniqueId } from '../utils/uniqueId';
 
 interface RoutineEditorProps {
   routine: Routine | null; // null means "Create New"
@@ -57,7 +58,7 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
       setTickingSoundEnabled(true);
       setSteps([
         {
-          id: 'step-new-1',
+          id: generateUniqueId('step'),
           name: 'First Step',
           description: 'Add step description...',
           duration: 60, // 1 min
@@ -65,7 +66,12 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
           type: 'work'
         }
       ]);
-      setChecklist([...DEFAULT_CHECKLIST]);
+      setChecklist(
+        DEFAULT_CHECKLIST.map((item) => ({
+          ...item,
+          id: generateUniqueId('ec')
+        }))
+      );
     }
   }, [routine]);
 
@@ -81,7 +87,7 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
     e.preventDefault();
     if (!customCheckText.trim()) return;
     const newItem: ChecklistItem = {
-      id: `ec-custom-${Date.now()}`,
+      id: generateUniqueId('ec-custom'),
       label: customCheckText.trim(),
       checked: false,
     };
@@ -93,7 +99,7 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
   // Step operations
   const handleAddStep = () => {
     const newStep: PracticeStep = {
-      id: `step-${Date.now()}`,
+      id: generateUniqueId('step'),
       name: `Step ${steps.length + 1}`,
       description: 'Add instructions...',
       duration: 60,

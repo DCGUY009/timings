@@ -283,8 +283,10 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
         // Seed default routines
         for (const routine of DEFAULT_ROUTINES) {
           try {
+            const uniqueRoutineId = `${routine.id}-${userId}`;
+            
             await supabase.from('routines').insert({
-              id: routine.id,
+              id: uniqueRoutineId,
               user_id: userId,
               name: routine.name,
               description: routine.description,
@@ -296,8 +298,8 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
             if (routine.steps && routine.steps.length > 0) {
               await supabase.from('routine_steps').insert(
                 routine.steps.map((step, idx) => ({
-                  id: step.id,
-                  routine_id: routine.id,
+                  id: `${step.id}-${userId}`,
+                  routine_id: uniqueRoutineId,
                   name: step.name,
                   description: step.description,
                   duration: step.duration,
@@ -311,8 +313,8 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
             if (routine.checklist && routine.checklist.length > 0) {
               await supabase.from('routine_checklist_items').insert(
                 routine.checklist.map((item, idx) => ({
-                  id: item.id,
-                  routine_id: routine.id,
+                  id: `${item.id}-${userId}`,
+                  routine_id: uniqueRoutineId,
                   label: item.label,
                   checked: item.checked,
                   position: idx
@@ -329,7 +331,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
           try {
             await supabase.from('global_checklist_items').insert(
               DEFAULT_CHECKLIST.map((item, idx) => ({
-                id: item.id,
+                id: `${item.id}-${userId}`,
                 user_id: userId,
                 label: item.label,
                 checked: item.checked,
@@ -346,7 +348,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
           try {
             const times = ['09:00 AM', '08:30 AM', '02:15 PM', '08:00 PM'];
             const seededHistory = DEFAULT_HISTORY.map((item, idx) => ({
-              id: item.id,
+              id: `${item.id}-${userId}`,
               user_id: userId,
               routine_name: item.routineName,
               timestamp: getRelativeTimestamp(idx, times[idx] || '09:00 AM'),
