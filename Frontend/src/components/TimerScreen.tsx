@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Play, Pause, RotateCcw, SkipForward, Volume2, Flame, Sparkles, CheckCircle } from 'lucide-react';
+import { X, Play, Pause, RotateCcw, SkipForward, Volume2, Flame, Sparkles, CheckCircle, ClipboardCheck, Check } from 'lucide-react';
 import { Routine, PracticeStep } from '../types';
 import { chimeSynthesizer } from '../utils/AudioSynthesizer';
+import { useRoutineStore } from '../store/useRoutineStore';
 
 interface TimerScreenProps {
   routine: Routine;
@@ -10,10 +11,15 @@ interface TimerScreenProps {
 }
 
 export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
+  const [phase, setPhase] = useState<'setup' | 'timer'>('setup');
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
+
+  const storeRoutine = useRoutineStore((state) => state.routines.find((r) => r.id === routine.id)) || routine;
+  const checklist = storeRoutine.checklist || [];
+  const handleToggleRoutineCheck = useRoutineStore((state) => state.handleToggleRoutineCheck);
 
   const steps = routine.steps;
   const currentStep = steps[currentStepIdx] || steps[0];
@@ -124,6 +130,14 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
     onClose(true, minutes);
   };
 
+  const handleExit = () => {
+    if (phase === 'setup') {
+      onClose(false, 0);
+    } else {
+      handleFinishEarly();
+    }
+  };
+
   if (isFinished) {
     const totalMinutes = Math.max(1, Math.round(steps.reduce((sum, s) => sum + s.duration, 0) / 60));
     return (
@@ -195,122 +209,239 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
         </div>
 
         <button
-          onClick={handleFinishEarly}
+          onClick={handleExit}
           className="p-3 bg-surface-container hover:bg-surface-container-high hover:text-error border border-outline-variant/30 text-on-surface-variant rounded-full transition-all cursor-pointer"
-          title="Exit timer"
+          title={phase === 'setup' ? "Cancel" : "Exit timer"}
         >
           <X className="w-5 h-5" />
         </button>
       </header>
 
-      {/* Main Column Body */}
-      <main className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full my-8">
-        {/* Step index indicator pill */}
-        <span className="inline-block px-3.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-primary-container bg-primary-container/15 rounded-full border border-primary-container/25 mb-6">
-          Step {currentStepIdx + 1} of {steps.length}
-        </span>
-
-        {/* Step Heading details */}
-        <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-on-surface text-center mb-2 font-sans">
-          {currentStep?.name}
-        </h2>
-        <p className="text-sm md:text-base text-on-surface-variant text-center max-w-lg mb-10 leading-relaxed font-sans h-12">
-          {currentStep?.description}
-        </p>
-
-        {/* Big Circular Countdown Display widget (Image 2 center) */}
-        <div className="relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center select-none">
-          {/* Static Background circular track */}
-          <svg className="absolute w-full h-full transform -rotate-90">
-            <circle
-              cx="50%"
-              cy="50%"
-              r={radius}
-              className="stroke-outline-variant/20"
-              strokeWidth="6"
-              fill="transparent"
-            />
-            {/* Active Cyan ticking border progress arc */}
-            <motion.circle
-              cx="50%"
-              cy="50%"
-              r={radius}
-              className="stroke-primary-container"
-              strokeWidth="6"
-              fill="transparent"
-              strokeDasharray={circumference}
-              animate={{ strokeDashoffset }}
-              transition={{ duration: 0.35, ease: 'linear' }}
-              strokeLinecap="round"
-            />
-          </svg>
-
-          {/* Time digits */}
-          <div className="flex flex-col items-center justify-center z-10 text-center">
-            <span className="font-mono text-[64px] md:text-[72px] font-extrabold leading-none tracking-tighter text-[#00f0ff]">
-              {formatTime(timeLeft)}
+      {/* Content wrapper with AnimatePresence */}
+      <AnimatePresence mode="wait">
+        {phase === 'setup' ? (
+          <motion.main
+            key="setup-phase"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.3 }}
+            className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full my-8"
+          >
+            {/* Title */}
+            <span className="inline-block px-3.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-primary-container bg-primary-container/15 rounded-full border border-primary-container/25 mb-6">
+              Environment Setup
             </span>
-            <span className="text-[10px] tracking-[0.2em] text-outline font-mono uppercase mt-1 font-semibold">
-              Remaining
+            <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-on-surface text-center mb-2 font-sans">
+              Prepare Your Space
+            </h2>
+            <p className="text-sm md:text-base text-on-surface-variant text-center max-w-lg mb-8 leading-relaxed font-sans px-4">
+              Prepare your environment for maximum efficiency before commencing <strong>{routine.name}</strong>.
+            </p>
+
+            {/* Checklist Card */}
+            <div className="bg-surface-container/40 border border-outline-variant/20 rounded-2xl p-6 w-full max-w-md mb-8 backdrop-blur-md relative overflow-hidden">
+              {/* Optional neon accent light on top */}
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#00f0ff]/50 to-transparent" />
+
+              {checklist.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center text-outline-variant mb-4 border border-outline-variant/10">
+                    <ClipboardCheck className="w-8 h-8 text-[#00f0ff]/60" />
+                  </div>
+                  <h3 className="text-sm font-sans font-bold text-on-surface mb-1">No Environment Checks</h3>
+                  <p className="text-xs text-on-surface-variant max-w-xs font-sans">
+                    No environmental checklist items are configured for this routine. Feel free to start.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Progress Indicator */}
+                  <div className="flex justify-between items-center text-xs font-mono mb-2">
+                    <span className="text-on-surface-variant">Preparation Progress</span>
+                    <span className="font-bold text-[#00f0ff]">
+                      {checklist.filter((item) => item.checked).length} of {checklist.length} ready
+                    </span>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden mb-4 border border-outline-variant/10">
+                    <motion.div
+                      className="h-full bg-gradient-to-r from-[#00f0ff] to-cyan-400"
+                      initial={{ width: 0 }}
+                      animate={{
+                        width: `${(checklist.filter((item) => item.checked).length / checklist.length) * 100}%`
+                      }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </div>
+
+                  {/* Checklist List */}
+                  <div className="max-h-60 overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
+                    {checklist.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => handleToggleRoutineCheck(routine.id, item.id)}
+                        className="flex items-center gap-3.5 w-full text-left p-3 rounded-xl bg-surface-container-low/55 border border-outline-variant/20 hover:border-[#00f0ff]/30 hover:bg-surface-container transition-all cursor-pointer group"
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
+                            item.checked
+                              ? 'bg-[#00f0ff] border-[#00f0ff] text-black shadow-lg shadow-cyan-500/20'
+                              : 'border-outline-variant group-hover:border-[#00f0ff]/50 text-transparent'
+                          }`}
+                        >
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </div>
+                        <span
+                          className={`text-sm font-sans font-medium transition-all ${
+                            item.checked
+                              ? 'text-on-surface/50 line-through'
+                              : 'text-on-surface'
+                          }`}
+                        >
+                          {item.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Glowing start button */}
+            <button
+              onClick={() => {
+                setPhase('timer');
+                setIsPlaying(true);
+              }}
+              className="bg-[#00f0ff] text-black font-sans font-bold text-sm px-10 py-4 rounded-xl hover:bg-white transition-all active:scale-95 cursor-pointer glow-button shadow-cyan-500/10 flex items-center gap-2 group"
+            >
+              Ready to Begin
+              <Play className="w-4 h-4 fill-current group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </motion.main>
+        ) : (
+          <motion.main
+            key="timer-phase"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.3 }}
+            className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto w-full my-8"
+          >
+            {/* Step index indicator pill */}
+            <span className="inline-block px-3.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider text-primary-container bg-primary-container/15 rounded-full border border-primary-container/25 mb-6">
+              Step {currentStepIdx + 1} of {steps.length}
             </span>
-          </div>
-        </div>
 
-        {/* Controllers panel */}
-        <div className="flex items-center gap-6 mt-10">
-          {/* Reset key */}
-          <button
-            onClick={handleReset}
-            className="p-3.5 bg-surface-container-low border border-outline-variant/35 hover:border-outline-variant text-[#dae2fd] hover:text-white rounded-full transition-all cursor-pointer hover:bg-surface-container active:scale-95"
-            title="Reset timer"
-          >
-            <RotateCcw className="w-5 h-5" />
-          </button>
+            {/* Step Heading details */}
+            <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-on-surface text-center mb-2 font-sans">
+              {currentStep?.name}
+            </h2>
+            <p className="text-sm md:text-base text-on-surface-variant text-center max-w-lg mb-10 leading-relaxed font-sans h-12">
+              {currentStep?.description}
+            </p>
 
-          {/* Play/Pause center toggle */}
-          <button
-            onClick={() => {
-              setIsPlaying(!isPlaying);
-              // Activate audio context
-              chimeSynthesizer.playTick();
-            }}
-            className={`w-16 h-16 rounded-full flex items-center justify-center text-on-primary-container transition-all cursor-pointer shadow-xl relative active:scale-95 hover:scale-105 duration-200 ${
-              isPlaying
-                ? 'bg-[#00f0ff] hover:bg-white text-black glow-active'
-                : 'bg-primary-container hover:bg-white'
-            }`}
-          >
-            {isPlaying ? (
-              <Pause className="w-6 h-6 fill-current text-black" />
-            ) : (
-              <Play className="w-6 h-6 fill-current text-black ml-1" />
-            )}
-          </button>
+            {/* Big Circular Countdown Display widget (Image 2 center) */}
+            <div className="relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center select-none">
+              {/* Static Background circular track */}
+              <svg className="absolute w-full h-full transform -rotate-90">
+                <circle
+                  cx="50%"
+                  cy="50%"
+                  r={radius}
+                  className="stroke-outline-variant/20"
+                  strokeWidth="6"
+                  fill="transparent"
+                />
+                {/* Active Cyan ticking border progress arc */}
+                <motion.circle
+                  cx="50%"
+                  cy="50%"
+                  r={radius}
+                  className="stroke-primary-container"
+                  strokeWidth="6"
+                  fill="transparent"
+                  strokeDasharray={circumference}
+                  animate={{ strokeDashoffset }}
+                  transition={{ duration: 0.35, ease: 'linear' }}
+                  strokeLinecap="round"
+                />
+              </svg>
 
-          {/* Next / Seek key */}
-          <button
-            onClick={handleNextStep}
-            className="p-3.5 bg-surface-container-low border border-outline-variant/35 hover:border-outline-variant text-[#dae2fd] hover:text-white rounded-full transition-all cursor-pointer hover:bg-surface-container active:scale-95"
-            title="Skip step"
-          >
-            <SkipForward className="w-5 h-5" />
-          </button>
-        </div>
-      </main>
+              {/* Time digits */}
+              <div className="flex flex-col items-center justify-center z-10 text-center">
+                <span className="font-mono text-[64px] md:text-[72px] font-extrabold leading-none tracking-tighter text-[#00f0ff]">
+                  {formatTime(timeLeft)}
+                </span>
+                <span className="text-[10px] tracking-[0.2em] text-outline font-mono uppercase mt-1 font-semibold">
+                  Remaining
+                </span>
+              </div>
+            </div>
+
+            {/* Controllers panel */}
+            <div className="flex items-center gap-6 mt-10">
+              {/* Reset key */}
+              <button
+                onClick={handleReset}
+                className="p-3.5 bg-surface-container-low border border-outline-variant/35 hover:border-outline-variant text-[#dae2fd] hover:text-white rounded-full transition-all cursor-pointer hover:bg-surface-container active:scale-95"
+                title="Reset timer"
+              >
+                <RotateCcw className="w-5 h-5" />
+              </button>
+
+              {/* Play/Pause center toggle */}
+              <button
+                onClick={() => {
+                  setIsPlaying(!isPlaying);
+                  // Activate audio context
+                  chimeSynthesizer.playTick();
+                }}
+                className={`w-16 h-16 rounded-full flex items-center justify-center text-on-primary-container transition-all cursor-pointer shadow-xl relative active:scale-95 hover:scale-105 duration-200 ${
+                  isPlaying
+                    ? 'bg-[#00f0ff] hover:bg-white text-black glow-active'
+                    : 'bg-primary-container hover:bg-white'
+                }`}
+              >
+                {isPlaying ? (
+                  <Pause className="w-6 h-6 fill-current text-black" />
+                ) : (
+                  <Play className="w-6 h-6 fill-current text-black ml-1" />
+                )}
+              </button>
+
+              {/* Next / Seek key */}
+              <button
+                onClick={handleNextStep}
+                className="p-3.5 bg-surface-container-low border border-outline-variant/35 hover:border-outline-variant text-[#dae2fd] hover:text-white rounded-full transition-all cursor-pointer hover:bg-surface-container active:scale-95"
+                title="Skip step"
+              >
+                <SkipForward className="w-5 h-5" />
+              </button>
+            </div>
+          </motion.main>
+        )}
+      </AnimatePresence>
 
       {/* Up Next Preview Slot Footer */}
       <footer className="w-full max-w-md mx-auto pt-4 select-none">
         <div className="bg-surface-container-high/60 border border-outline-variant/20 rounded-2xl p-4 flex items-center justify-between">
           <div>
             <span className="block text-[9px] font-mono uppercase text-outline tracking-wider font-semibold mb-1">
-              Up Next
+              {phase === 'setup' ? 'First Step' : 'Up Next'}
             </span>
             <span className="text-sm font-sans font-bold text-[#dae2fd]">
-              {nextStep ? nextStep.name : 'Routine Conclusion'}
+              {phase === 'setup' 
+                ? (steps[0]?.name || 'Routine Sequence')
+                : (nextStep ? nextStep.name : 'Routine Conclusion')}
             </span>
           </div>
           <span className="text-xs font-mono font-bold text-primary-container/80 tracking-wide bg-primary-container/10 border border-primary-container/15 px-2.5 py-1 rounded">
-            {nextStep ? formatTime(nextStep.duration) : '00:00'}
+            {phase === 'setup'
+              ? formatTime(steps[0]?.duration || 0)
+              : (nextStep ? formatTime(nextStep.duration) : '00:00')}
           </span>
         </div>
       </footer>

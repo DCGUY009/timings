@@ -66,12 +66,7 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
           type: 'work'
         }
       ]);
-      setChecklist(
-        DEFAULT_CHECKLIST.map((item) => ({
-          ...item,
-          id: generateUniqueId('ec')
-        }))
-      );
+      setChecklist([]);
     }
   }, [routine]);
 
