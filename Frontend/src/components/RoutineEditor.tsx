@@ -48,7 +48,10 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
       if (routine.checklist) {
         setChecklist([...routine.checklist]);
       } else {
-        setChecklist([...DEFAULT_CHECKLIST]);
+        setChecklist(DEFAULT_CHECKLIST.map(item => ({
+          ...item,
+          id: generateUniqueId('ec')
+        })));
       }
     } else {
       // Create empty/blank canvas
@@ -1177,10 +1180,10 @@ function InteractiveWaveTrimmer({
 
     // Number of bars
     const barCount = 70;
-    const barWidth = 3;
+    const totalBarWidth = width / barCount;
     const barGap = 2;
-    const totalBarWidth = barWidth + barGap;
-    const startX = (width - (barCount * totalBarWidth - barGap)) / 2;
+    const barWidth = Math.max(1.5, totalBarWidth - barGap);
+    const startX = 0;
 
     const samplesPerBin = Math.floor(rawData.length / barCount);
     const peaks: number[] = [];
@@ -1308,7 +1311,7 @@ function InteractiveWaveTrimmer({
         {/* Inner track with rounded corners and overflow-hidden */}
         <div className="absolute inset-0 bg-transparent border border-outline-variant/35 rounded-xl overflow-hidden pointer-events-none">
           <div className="absolute inset-0 opacity-5 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:10px_10px]" />
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full p-2" />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
         </div>
 
         {/* Start Handle Line and Knob */}
