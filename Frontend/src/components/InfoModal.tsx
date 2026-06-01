@@ -112,7 +112,7 @@ export default function InfoModal({ isOpen, onClose, defaultTab }: InfoModalProp
                       <Shield className="w-4 h-4 text-primary-container" /> Privacy Policy
                     </h4>
                     <p>
-                      Timings is designed with privacy at its core. All of your custom routines, checklists, and session history are stored securely in our cloud database under strict row-level security policy checks.
+                      Timings is designed with privacy at its core. All of your custom routines, checklists, and session history are stored securely in our cloud database under strict security measures.
                     </p>
                     <p>
                       We do not track, profile, sell, or disclose your information to any third parties. Your presence and attention belong to you.
