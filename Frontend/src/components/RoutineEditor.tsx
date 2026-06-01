@@ -19,6 +19,7 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
   const [steps, setSteps] = useState<PracticeStep[]>([]);
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [customCheckText, setCustomCheckText] = useState('');
+  const [tickingSoundEnabled, setTickingSoundEnabled] = useState(true);
 
   // Loaded state
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
       }
 
       setSteps([...routine.steps]);
+      setTickingSoundEnabled(routine.tickingSoundEnabled !== false);
       
       if (routine.checklist) {
         setChecklist([...routine.checklist]);
@@ -52,6 +54,7 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
       setCategory('Focus');
       setIsCustomCategory(false);
       setCustomCategoryInput('');
+      setTickingSoundEnabled(true);
       setSteps([
         {
           id: 'step-new-1',
@@ -149,7 +152,8 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
       category: finalCategory,
       steps: steps,
       lastExecuted: routine?.lastExecuted || 'Never',
-      checklist: checklist
+      checklist: checklist,
+      tickingSoundEnabled: tickingSoundEnabled
     });
   };
 
@@ -453,6 +457,29 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
                   <span>Rest</span>
                   <span className="font-mono text-on-surface font-bold">{formatTimeDigital(totalRest)}</span>
                 </div>
+              </div>
+
+              {/* Metronome Tick Toggle */}
+              <div className="border-t border-outline-variant/15 pt-4 flex items-center justify-between gap-4 text-sm font-sans select-none">
+                <div className="min-w-0 flex-1">
+                  <span className="font-semibold text-on-surface block">Metronome Tick</span>
+                  <span className="text-[10px] text-on-surface-variant block mt-0.5 leading-relaxed">
+                    Play quiet clicking metronome sounds during timing run.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTickingSoundEnabled(!tickingSoundEnabled)}
+                  className={`w-10 h-6 rounded-full transition-all relative cursor-pointer outline-none shrink-0 ${
+                    tickingSoundEnabled ? 'bg-primary-container' : 'bg-surface-container-highest'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${
+                      tickingSoundEnabled ? 'translate-x-[16px]' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
               </div>
             </div>
           </div>

@@ -46,7 +46,9 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
             return 0;
           }
           // Optional ticking audio feedback (very quiet soft click)
-          chimeSynthesizer.playTick();
+          if (routine.tickingSoundEnabled !== false) {
+            chimeSynthesizer.playTick();
+          }
           return prev - 1;
         });
       }, 1000);

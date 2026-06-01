@@ -170,7 +170,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       const { data: dbRoutines, error: routinesErr } = await supabase
         .from('routines')
         .select(`
-          id, name, description, category, last_executed,
+          id, name, description, category, last_executed, ticking_sound_enabled,
           steps:routine_steps(*),
           checklist:routine_checklist_items(*)
         `)
@@ -223,7 +223,8 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
               name: routine.name,
               description: routine.description,
               category: routine.category,
-              last_executed: routine.lastExecuted
+              last_executed: routine.lastExecuted,
+              ticking_sound_enabled: routine.tickingSoundEnabled ?? true
             });
 
             if (routine.steps && routine.steps.length > 0) {
@@ -310,6 +311,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
         description: r.description || '',
         category: r.category || '',
         lastExecuted: r.last_executed || undefined,
+        tickingSoundEnabled: r.ticking_sound_enabled,
         steps: (r.steps || []).sort((a: any, b: any) => a.position - b.position).map((s: any) => ({
           id: s.id,
           name: s.name,
@@ -446,7 +448,8 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       name: savedRoutine.name,
       description: savedRoutine.description,
       category: savedRoutine.category,
-      last_executed: savedRoutine.lastExecuted
+      last_executed: savedRoutine.lastExecuted,
+      ticking_sound_enabled: savedRoutine.tickingSoundEnabled ?? true
     });
     if (routineErr) {
       console.error('[handleSaveEditedRoutine] Supabase upsert routine failed:', routineErr.message, routineErr.details);

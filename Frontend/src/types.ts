@@ -18,6 +18,7 @@ export interface Routine {
   steps: PracticeStep[];
   lastExecuted?: string; // string representing time elapsed, e.g. "Today, 9:00 AM" or null
   checklist?: ChecklistItem[];
+  tickingSoundEnabled?: boolean;
 }
 
 export interface SessionHistoryItem {

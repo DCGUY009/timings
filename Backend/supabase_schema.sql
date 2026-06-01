@@ -25,6 +25,7 @@ create table public.routines (
   description text,
   category text,
   last_executed text,
+  ticking_sound_enabled boolean not null default true,
   created_at timestamp with time zone not null default now(),
   updated_at timestamp with time zone not null default now()
 );

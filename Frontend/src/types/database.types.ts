@@ -58,6 +58,7 @@ export interface Database {
           description: string | null
           category: string | null
           last_executed: string | null
+          ticking_sound_enabled: boolean
           created_at: string
           updated_at: string
         }
@@ -68,6 +69,7 @@ export interface Database {
           description?: string | null
           category?: string | null
           last_executed?: string | null
+          ticking_sound_enabled?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -78,6 +80,7 @@ export interface Database {
           description?: string | null
           category?: string | null
           last_executed?: string | null
+          ticking_sound_enabled?: boolean
           created_at?: string
           updated_at?: string
         }
