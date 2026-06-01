@@ -112,10 +112,7 @@ export default function InfoModal({ isOpen, onClose, defaultTab }: InfoModalProp
                       <Shield className="w-4 h-4 text-primary-container" /> Privacy Policy
                     </h4>
                     <p>
-                      Timings is designed with privacy at its core. Most of your custom routine data is stored completely locally in your browser's <code className="font-mono text-xs bg-surface-container-highest px-1 py-0.5 rounded text-primary-container">LocalStorage</code>.
-                    </p>
-                    <p>
-                      If you choose to register and use our cloud synchronization, your account profile and custom routines are securely stored in our Supabase database instance under strict row-level security policy checks.
+                      Timings is designed with privacy at its core. All of your custom routines, checklists, and session history are stored securely in our cloud database under strict row-level security policy checks.
                     </p>
                     <p>
                       We do not track, profile, sell, or disclose your information to any third parties. Your presence and attention belong to you.

@@ -363,6 +363,8 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
 
   handleToggleRoutineCheck: async (routineId, itemId) => {
     const { routines, user } = get();
+    if (!user) return;
+
     const updated = routines.map((r) => {
       if (r.id === routineId) {
         const rChecklist = r.checklist || [];
@@ -376,43 +378,37 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
 
     set({ routines: updated });
 
-    if (user) {
-      const targetRoutine = updated.find(r => r.id === routineId);
-      const targetItem = targetRoutine?.checklist?.find(i => i.id === itemId);
-      if (targetItem) {
-        const { error } = await supabase
-          .from('routine_checklist_items')
-          .update({ checked: targetItem.checked })
-          .eq('id', itemId);
-        if (error) {
-          console.error('[handleToggleRoutineCheck] Supabase update failed:', error.message, error.details);
-        }
+    const targetRoutine = updated.find(r => r.id === routineId);
+    const targetItem = targetRoutine?.checklist?.find(i => i.id === itemId);
+    if (targetItem) {
+      const { error } = await supabase
+        .from('routine_checklist_items')
+        .update({ checked: targetItem.checked })
+        .eq('id', itemId);
+      if (error) {
+        console.error('[handleToggleRoutineCheck] Supabase update failed:', error.message, error.details);
       }
-    } else {
-      localStorage.setItem('timings_saved_routines', JSON.stringify(updated));
     }
   },
 
   handleToggleCheck: async (id) => {
     const { checklist, user } = get();
+    if (!user) return;
+
     const updated = checklist.map((item) =>
       item.id === id ? { ...item, checked: !item.checked } : item
     );
     set({ checklist: updated });
 
-    if (user) {
-      const targetItem = updated.find(i => i.id === id);
-      if (targetItem) {
-        const { error } = await supabase
-          .from('global_checklist_items')
-          .update({ checked: targetItem.checked })
-          .eq('id', id);
-        if (error) {
-          console.error('[handleToggleCheck] Supabase update failed:', error.message, error.details);
-        }
+    const targetItem = updated.find(i => i.id === id);
+    if (targetItem) {
+      const { error } = await supabase
+        .from('global_checklist_items')
+        .update({ checked: targetItem.checked })
+        .eq('id', id);
+      if (error) {
+        console.error('[handleToggleCheck] Supabase update failed:', error.message, error.details);
       }
-    } else {
-      localStorage.setItem('timings_checklist', JSON.stringify(updated));
     }
   },
 
@@ -422,6 +418,8 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
 
   handleSaveEditedRoutine: async (savedRoutine) => {
     const { routines, user } = get();
+    if (!user) return;
+
     let updatedRoutines: Routine[] = [];
     const exists = routines.some((r) => r.id === savedRoutine.id);
 
@@ -433,111 +431,105 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
 
     set({ routines: updatedRoutines });
 
-    if (user) {
-      const { data: authUser, error: authErr } = await supabase.auth.getUser();
-      if (authErr || !authUser.user) {
-        console.error('[handleSaveEditedRoutine] Auth error:', authErr || 'No user session');
-        return;
-      }
+    const { data: authUser, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !authUser.user) {
+      console.error('[handleSaveEditedRoutine] Auth error:', authErr || 'No user session');
+      return;
+    }
 
-      console.log('[handleSaveEditedRoutine] Saving routine to database...', savedRoutine.id);
+    console.log('[handleSaveEditedRoutine] Saving routine to database...', savedRoutine.id);
 
-      // 1. Upsert routine
-      const { error: routineErr } = await supabase.from('routines').upsert({
-        id: savedRoutine.id,
-        user_id: authUser.user.id,
-        name: savedRoutine.name,
-        description: savedRoutine.description,
-        category: savedRoutine.category,
-        last_executed: savedRoutine.lastExecuted
-      });
-      if (routineErr) {
-        console.error('[handleSaveEditedRoutine] Supabase upsert routine failed:', routineErr.message, routineErr.details);
-      }
+    // 1. Upsert routine
+    const { error: routineErr } = await supabase.from('routines').upsert({
+      id: savedRoutine.id,
+      user_id: authUser.user.id,
+      name: savedRoutine.name,
+      description: savedRoutine.description,
+      category: savedRoutine.category,
+      last_executed: savedRoutine.lastExecuted
+    });
+    if (routineErr) {
+      console.error('[handleSaveEditedRoutine] Supabase upsert routine failed:', routineErr.message, routineErr.details);
+    }
 
-      // 2. Refresh steps (Delete existing steps and insert new ones)
-      const { error: delStepsErr } = await supabase.from('routine_steps').delete().eq('routine_id', savedRoutine.id);
-      if (delStepsErr) {
-        console.error('[handleSaveEditedRoutine] Supabase delete steps failed:', delStepsErr.message, delStepsErr.details);
+    // 2. Refresh steps (Delete existing steps and insert new ones)
+    const { error: delStepsErr } = await supabase.from('routine_steps').delete().eq('routine_id', savedRoutine.id);
+    if (delStepsErr) {
+      console.error('[handleSaveEditedRoutine] Supabase delete steps failed:', delStepsErr.message, delStepsErr.details);
+    }
+    if (savedRoutine.steps.length > 0) {
+      const { error: insStepsErr } = await supabase.from('routine_steps').insert(
+        savedRoutine.steps.map((step, idx) => ({
+          id: step.id,
+          routine_id: savedRoutine.id,
+          name: step.name,
+          description: step.description,
+          duration: step.duration,
+          cue: step.cue,
+          type: step.type,
+          position: idx
+        }))
+      );
+      if (insStepsErr) {
+        console.error('[handleSaveEditedRoutine] Supabase insert steps failed:', insStepsErr.message, insStepsErr.details);
       }
-      if (savedRoutine.steps.length > 0) {
-        const { error: insStepsErr } = await supabase.from('routine_steps').insert(
-          savedRoutine.steps.map((step, idx) => ({
-            id: step.id,
-            routine_id: savedRoutine.id,
-            name: step.name,
-            description: step.description,
-            duration: step.duration,
-            cue: step.cue,
-            type: step.type,
-            position: idx
-          }))
-        );
-        if (insStepsErr) {
-          console.error('[handleSaveEditedRoutine] Supabase insert steps failed:', insStepsErr.message, insStepsErr.details);
-        }
-      }
+    }
 
-      // 3. Refresh checklist items
-      const { error: delCheckErr } = await supabase.from('routine_checklist_items').delete().eq('routine_id', savedRoutine.id);
-      if (delCheckErr) {
-        console.error('[handleSaveEditedRoutine] Supabase delete checklist failed:', delCheckErr.message, delCheckErr.details);
+    // 3. Refresh checklist items
+    const { error: delCheckErr } = await supabase.from('routine_checklist_items').delete().eq('routine_id', savedRoutine.id);
+    if (delCheckErr) {
+      console.error('[handleSaveEditedRoutine] Supabase delete checklist failed:', delCheckErr.message, delCheckErr.details);
+    }
+    if (savedRoutine.checklist && savedRoutine.checklist.length > 0) {
+      const { error: insCheckErr } = await supabase.from('routine_checklist_items').insert(
+        savedRoutine.checklist.map((item, idx) => ({
+          id: item.id,
+          routine_id: savedRoutine.id,
+          label: item.label,
+          checked: item.checked,
+          position: idx
+        }))
+      );
+      if (insCheckErr) {
+        console.error('[handleSaveEditedRoutine] Supabase insert checklist failed:', insCheckErr.message, insCheckErr.details);
       }
-      if (savedRoutine.checklist && savedRoutine.checklist.length > 0) {
-        const { error: insCheckErr } = await supabase.from('routine_checklist_items').insert(
-          savedRoutine.checklist.map((item, idx) => ({
-            id: item.id,
-            routine_id: savedRoutine.id,
-            label: item.label,
-            checked: item.checked,
-            position: idx
-          }))
-        );
-        if (insCheckErr) {
-          console.error('[handleSaveEditedRoutine] Supabase insert checklist failed:', insCheckErr.message, insCheckErr.details);
-        }
-      }
-    } else {
-      localStorage.setItem('timings_saved_routines', JSON.stringify(updatedRoutines));
     }
   },
 
   handleDeleteRoutine: async (id) => {
     const { routines, user } = get();
+    if (!user) return;
+
     const updated = routines.filter((r) => r.id !== id);
     set({ routines: updated });
 
-    if (user) {
-      const { error } = await supabase.from('routines').delete().eq('id', id);
-      if (error) {
-        console.error('[handleDeleteRoutine] Supabase delete routine failed:', error.message, error.details);
-      }
-    } else {
-      localStorage.setItem('timings_saved_routines', JSON.stringify(updated));
+    const { error } = await supabase.from('routines').delete().eq('id', id);
+    if (error) {
+      console.error('[handleDeleteRoutine] Supabase delete routine failed:', error.message, error.details);
     }
   },
 
   handleClearHistory: async () => {
     const { user } = get();
+    if (!user) return;
+
     set({ history: [] });
 
-    if (user) {
-      const { data: authUser, error: authErr } = await supabase.auth.getUser();
-      if (authErr || !authUser.user) {
-        console.error('[handleClearHistory] Auth error:', authErr || 'No user session');
-        return;
-      }
-      const { error } = await supabase.from('session_history').delete().eq('user_id', authUser.user.id);
-      if (error) {
-        console.error('[handleClearHistory] Supabase clear history failed:', error.message, error.details);
-      }
-    } else {
-      localStorage.setItem('timings_history', JSON.stringify([]));
+    const { data: authUser, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !authUser.user) {
+      console.error('[handleClearHistory] Auth error:', authErr || 'No user session');
+      return;
+    }
+    const { error } = await supabase.from('session_history').delete().eq('user_id', authUser.user.id);
+    if (error) {
+      console.error('[handleClearHistory] Supabase clear history failed:', error.message, error.details);
     }
   },
 
   handleAddSessionToLog: async (item) => {
     const { history, streakDays, user } = get();
+    if (!user) return;
+
     const updated = [item, ...history];
     const newStreak = streakDays + 1;
     set({ 
@@ -545,35 +537,31 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       streakDays: newStreak
     });
 
-    if (user) {
-      const { data: authUser, error: authErr } = await supabase.auth.getUser();
-      if (authErr || !authUser.user) {
-        console.error('[handleAddSessionToLog] Auth error:', authErr || 'No user session');
-        return;
-      }
-      // Insert into history table
-      const { error: histErr } = await supabase.from('session_history').insert({
-        id: item.id,
-        user_id: authUser.user.id,
-        routine_name: item.routineName,
-        timestamp: item.timestamp,
-        duration_minutes: item.durationMinutes,
-        completion_rate: item.completionRate
-      });
-      if (histErr) {
-        console.error('[handleAddSessionToLog] Supabase insert history failed:', histErr.message, histErr.details);
-      }
+    const { data: authUser, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !authUser.user) {
+      console.error('[handleAddSessionToLog] Auth error:', authErr || 'No user session');
+      return;
+    }
+    // Insert into history table
+    const { error: histErr } = await supabase.from('session_history').insert({
+      id: item.id,
+      user_id: authUser.user.id,
+      routine_name: item.routineName,
+      timestamp: item.timestamp,
+      duration_minutes: item.durationMinutes,
+      completion_rate: item.completionRate
+    });
+    if (histErr) {
+      console.error('[handleAddSessionToLog] Supabase insert history failed:', histErr.message, histErr.details);
+    }
 
-      // Update streak_days in user profile
-      const { error: streakErr } = await supabase
-        .from('profiles')
-        .update({ streak_days: newStreak })
-        .eq('id', authUser.user.id);
-      if (streakErr) {
-        console.error('[handleAddSessionToLog] Supabase update streak failed:', streakErr.message, streakErr.details);
-      }
-    } else {
-      localStorage.setItem('timings_history', JSON.stringify(updated));
+    // Update streak_days in user profile
+    const { error: streakErr } = await supabase
+      .from('profiles')
+      .update({ streak_days: newStreak })
+      .eq('id', authUser.user.id);
+    if (streakErr) {
+      console.error('[handleAddSessionToLog] Supabase update streak failed:', streakErr.message, streakErr.details);
     }
   },
 
@@ -582,12 +570,11 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
     if (error) {
       console.error('[handleLogout] Sign out error:', error.message);
     }
-    localStorage.removeItem('timings_user');
     set({
       user: null,
-      routines: [...DEFAULT_ROUTINES],
-      checklist: [...DEFAULT_CHECKLIST],
-      history: [...DEFAULT_HISTORY],
+      routines: [],
+      checklist: [],
+      history: [],
       streakDays: 0,
       activeRoutine: null
     });
@@ -595,12 +582,12 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
 
   handleLoginSuccess: async (signedInUser, userId) => {
     set({ user: signedInUser });
-    localStorage.setItem('timings_user', JSON.stringify(signedInUser));
     await get().fetchData(userId);
   },
 
   handleTimerFinished: async (completed, sessionLengthInMinutes) => {
-    const { activeRoutine, routines } = get();
+    const { activeRoutine, routines, user } = get();
+    if (!user) return;
     
     if (completed && activeRoutine) {
       const logItem: SessionHistoryItem = {
@@ -623,18 +610,12 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
 
       set({ routines: updatedRoutines });
       
-      // Update local storage / DB last executed timestamp
-      const { user } = get();
-      if (user) {
-        const { error } = await supabase
-          .from('routines')
-          .update({ last_executed: `Today, ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` })
-          .eq('id', activeRoutine.id);
-        if (error) {
-          console.error('[handleTimerFinished] Supabase update last executed failed:', error.message, error.details);
-        }
-      } else {
-        localStorage.setItem('timings_saved_routines', JSON.stringify(updatedRoutines));
+      const { error } = await supabase
+        .from('routines')
+        .update({ last_executed: `Today, ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` })
+        .eq('id', activeRoutine.id);
+      if (error) {
+        console.error('[handleTimerFinished] Supabase update last executed failed:', error.message, error.details);
       }
 
       await get().handleAddSessionToLog(logItem);

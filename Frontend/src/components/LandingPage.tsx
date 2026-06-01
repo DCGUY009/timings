@@ -181,7 +181,7 @@ export default function LandingPage({ onStart, onNavigate }: LandingPageProps) {
             </div>
             <h3 className="font-sans font-bold text-headline-md text-on-surface">Reusable Templates</h3>
             <p className="text-body-md text-on-surface-variant leading-relaxed">
-              Build your customized breathing intervals, meditation steps, or workout sequences once, save them safely into local storage templates, and trigger them infinitely with a single click.
+              Build your customized breathing intervals, meditation steps, or workout sequences once, save them safely in your cloud account, and trigger them infinitely with a single click.
             </p>
           </div>
         </div>
