@@ -107,6 +107,14 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Refs that mirror reps state so the interval callback always reads fresh values
+  const repRef = useRef(0);
+  const setRef = useRef(1);
+  const subPhaseRef = useRef<'work' | 'rest'>('work');
+  const timeLeftRef = useRef(0);
+  const stepRef = useRef(currentStep);
+  stepRef.current = currentStep; // always current
+
   // Initialize step configuration states on transition
   useEffect(() => {
     if (currentStep) {
@@ -115,6 +123,11 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
         setCurrentRep(0);
         setRepSubPhase('work');
         setTimeLeft(currentStep.repPace || 3.0);
+        // sync refs
+        repRef.current = 0;
+        setRef.current = 1;
+        subPhaseRef.current = 'work';
+        timeLeftRef.current = currentStep.repPace || 3.0;
       } else if (currentStep.stepFormat === 'audio-loop') {
         setCurrentRep(1);
         setRepSubPhase('work');
@@ -124,25 +137,6 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
       }
     }
   }, [currentStepIdx, routine]);
-
-  // Speak "1" immediately when a reps step starts playing
-  const prevIsPlayingRef = useRef(false);
-  const prevStepIdxRef = useRef(-1);
-  useEffect(() => {
-    const justStarted =
-      isPlaying &&
-      currentStep?.stepFormat === 'reps' &&
-      phase === 'timer' &&
-      repSubPhase === 'work' &&
-      currentRep === 0 &&
-      (!prevIsPlayingRef.current || prevStepIdxRef.current !== currentStepIdx);
-    if (justStarted) {
-      setCurrentRep(1);
-      speakRep(1);
-    }
-    prevIsPlayingRef.current = isPlaying;
-    prevStepIdxRef.current = currentStepIdx;
-  }, [isPlaying, currentStepIdx, phase]);
 
   // Handle Audio Loops playback logic
   useEffect(() => {
@@ -187,80 +181,98 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
 
   // Handle primary timing countdown and pacer loop
   useEffect(() => {
-    if (isPlaying && (currentStep.stepFormat !== 'audio-loop' || timeLeft > 0)) {
-      if (currentStep.stepFormat === 'reps') {
-        timerRef.current = setInterval(() => {
-          setTimeLeft((prev) => {
-            if (repSubPhase === 'work') {
-              if (prev <= 1) {
-                const nextRep = currentRep + 1;
-                const maxReps = currentStep.reps || 12;
+    if (timerRef.current) clearInterval(timerRef.current);
 
-                if (nextRep <= maxReps) {
-                  setCurrentRep(nextRep);
-                  speakRep(nextRep);           // voice only — no beep
-                  const pace = currentStep.repPace || 3.0;
-                  return pace;
-                } else {
-                  // All reps done for this set
-                  const maxSets = currentStep.sets || 1;
-                  if (currentSet < maxSets) {
-                    setRepSubPhase('rest');
-                    playCueSound(currentStep);
-                    const restTime = currentStep.duration || 30;
-                    return restTime;
-                  } else {
-                    // All sets completed
-                    clearInterval(timerRef.current!);
-                    playCueSound(currentStep);
-                    handleNextStep();
-                    return 0;
-                  }
-                }
-              } else {
-                // Silence between reps — no tick for reps mode
-                return prev - 1;
-              }
-            } else {
-              // Resting between sets — count down silently
-              if (prev <= 1) {
-                setCurrentSet((s) => s + 1);
-                setCurrentRep(1);
-                setRepSubPhase('work');
-                speakRep(1);                  // voice announces rep 1 of next set
-                const pace = currentStep.repPace || 3.0;
-                return pace;
-              } else {
-                return prev - 1;              // silent rest countdown
-              }
-            }
-          });
-        }, 1000);
-      } else {
-        // Standard time-based step
-        timerRef.current = setInterval(() => {
-          setTimeLeft((prev) => {
-            if (prev <= 1) {
-              playCueSound(currentStep);
-              clearInterval(timerRef.current!);
-              handleNextStep();
-              return 0;
-            }
-            if (routine.tickingSoundEnabled !== false) {
-              chimeSynthesizer.playTick();
-            }
-            return prev - 1;
-          });
-        }, 1000);
+    if (!isPlaying) return;
+    if (currentStep.stepFormat === 'audio-loop') return; // audio-loop handled by its own effect
+
+    if (currentStep.stepFormat === 'reps') {
+      // Speak rep 1 immediately when the interval first starts
+      if (repRef.current === 0) {
+        repRef.current = 1;
+        setCurrentRep(1);
+        speakRep(1);
       }
+
+      timerRef.current = setInterval(() => {
+        timeLeftRef.current -= 1;
+
+        if (subPhaseRef.current === 'work') {
+          if (timeLeftRef.current <= 0) {
+            const nextRep = repRef.current + 1;
+            const maxReps = stepRef.current.reps || 12;
+
+            if (nextRep <= maxReps) {
+              // Next rep
+              repRef.current = nextRep;
+              setCurrentRep(nextRep);
+              speakRep(nextRep);
+              const pace = stepRef.current.repPace || 3.0;
+              timeLeftRef.current = pace;
+              setTimeLeft(pace);
+            } else {
+              // All reps done for this set
+              const maxSets = stepRef.current.sets || 1;
+              if (setRef.current < maxSets) {
+                subPhaseRef.current = 'rest';
+                setRepSubPhase('rest');
+                playCueSound(stepRef.current);
+                const restTime = stepRef.current.duration || 30;
+                timeLeftRef.current = restTime;
+                setTimeLeft(restTime);
+              } else {
+                // All sets completed
+                clearInterval(timerRef.current!);
+                playCueSound(stepRef.current);
+                handleNextStep();
+              }
+            }
+          } else {
+            // Countdown silently — no tick during reps
+            setTimeLeft(timeLeftRef.current);
+          }
+        } else {
+          // Rest between sets
+          if (timeLeftRef.current <= 0) {
+            const nextSet = setRef.current + 1;
+            setRef.current = nextSet;
+            setCurrentSet(nextSet);
+            repRef.current = 1;
+            setCurrentRep(1);
+            subPhaseRef.current = 'work';
+            setRepSubPhase('work');
+            speakRep(1); // voice announces '1' at start of next set
+            const pace = stepRef.current.repPace || 3.0;
+            timeLeftRef.current = pace;
+            setTimeLeft(pace);
+          } else {
+            // Silent rest countdown
+            setTimeLeft(timeLeftRef.current);
+          }
+        }
+      }, 1000);
     } else {
-      if (timerRef.current) clearInterval(timerRef.current);
+      // Standard time-based step
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            playCueSound(currentStep);
+            clearInterval(timerRef.current!);
+            handleNextStep();
+            return 0;
+          }
+          if (routine.tickingSoundEnabled !== false) {
+            chimeSynthesizer.playTick();
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPlaying, timeLeft, currentStepIdx, repSubPhase, currentRep, currentSet]);
+  }, [isPlaying, currentStepIdx, repSubPhase]);
 
   // Clean-up on unmount
   useEffect(() => {
