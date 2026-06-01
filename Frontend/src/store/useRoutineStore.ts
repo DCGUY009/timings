@@ -3,6 +3,72 @@ import { supabase } from '../utils/supabaseClient';
 import { Routine, SessionHistoryItem, ChecklistItem, User } from '../types';
 import { DEFAULT_ROUTINES, DEFAULT_CHECKLIST, DEFAULT_HISTORY } from '../data/defaultRoutines';
 
+// Helper to calculate daily consecutive practice streak from history items
+const calculateStreak = (history: SessionHistoryItem[]): number => {
+  if (!history || history.length === 0) return 0;
+
+  const getLocalDateString = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const parseToLocalDate = (timestamp: string): string | null => {
+    const dateStr = timestamp.split('•')[0].trim();
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    return getLocalDateString(d);
+  };
+
+  const loggedDates = Array.from(new Set(
+    history
+      .map(item => parseToLocalDate(item.timestamp))
+      .filter((d): d is string => d !== null)
+  )).sort((a, b) => b.localeCompare(a)); // Descending order
+
+  if (loggedDates.length === 0) return 0;
+
+  const todayStr = getLocalDateString(new Date());
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = getLocalDateString(yesterday);
+
+  const hasToday = loggedDates.includes(todayStr);
+  const hasYesterday = loggedDates.includes(yesterdayStr);
+
+  if (!hasToday && !hasYesterday) {
+    return 0;
+  }
+
+  let streak = 0;
+  const checkDate = new Date();
+
+  if (!hasToday && hasYesterday) {
+    checkDate.setDate(checkDate.getDate() - 1);
+  }
+
+  while (true) {
+    const checkStr = getLocalDateString(checkDate);
+    if (loggedDates.includes(checkStr)) {
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+};
+
+// Helper to generate dynamic timestamps relative to today for seeding demo data
+const getRelativeTimestamp = (daysAgo: number, timeStr: string): string => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  const datePart = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${datePart} • ${timeStr}`;
+};
+
 interface RoutineState {
   // State
   user: User | null;
@@ -278,23 +344,33 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
         // Seed default history
         if (!dbHistory || dbHistory.length === 0) {
           try {
-            await supabase.from('session_history').insert(
-              DEFAULT_HISTORY.map((item) => ({
-                id: item.id,
-                user_id: userId,
-                routine_name: item.routineName,
-                timestamp: item.timestamp,
-                duration_minutes: item.durationMinutes,
-                completion_rate: item.completionRate
-              }))
-            );
+            const times = ['09:00 AM', '08:30 AM', '02:15 PM', '08:00 PM'];
+            const seededHistory = DEFAULT_HISTORY.map((item, idx) => ({
+              id: item.id,
+              user_id: userId,
+              routine_name: item.routineName,
+              timestamp: getRelativeTimestamp(idx, times[idx] || '09:00 AM'),
+              duration_minutes: item.durationMinutes,
+              completion_rate: item.completionRate
+            }));
+
+            await supabase.from('session_history').insert(seededHistory);
             
-            // Set user profile streak to match seeded history
+            // Calculate streak dynamically from seeded history
+            const mappedHistoryItems: SessionHistoryItem[] = seededHistory.map((item) => ({
+              id: item.id,
+              routineName: item.routine_name,
+              timestamp: item.timestamp,
+              durationMinutes: item.duration_minutes,
+              completionRate: item.completion_rate
+            }));
+            const seededStreak = calculateStreak(mappedHistoryItems);
+
             await supabase
               .from('profiles')
-              .update({ streak_days: DEFAULT_HISTORY.length })
+              .update({ streak_days: seededStreak })
               .eq('id', userId);
-            set({ streakDays: DEFAULT_HISTORY.length });
+            set({ streakDays: seededStreak });
           } catch (seedErr) {
             console.error('[fetchData] Failed to seed session history:', seedErr);
           }
@@ -335,19 +411,16 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
         completionRate: h.completion_rate
       }));
 
-      // Robust check: If history is empty but streakDays is still showing > 0 (often from legacy triggers/defaults),
-      // we auto-correct it locally and update the database profile record.
-      if (historyList.length === 0 && get().streakDays > 0) {
-        console.log('[fetchData] Correcting streakDays from', get().streakDays, 'to 0 because history is empty');
-        set({ streakDays: 0 });
-        try {
-          await supabase
-            .from('profiles')
-            .update({ streak_days: 0 })
-            .eq('id', userId);
-        } catch (dbErr) {
-          console.error('[fetchData] Failed to auto-correct profile streak to 0:', dbErr);
-        }
+      const computedStreak = calculateStreak(historyList);
+      
+      // Sync calculated streak to profiles table in DB
+      try {
+        await supabase
+          .from('profiles')
+          .update({ streak_days: computedStreak })
+          .eq('id', userId);
+      } catch (dbErr) {
+        console.error('[fetchData] Failed to sync computed streak to DB:', dbErr);
       }
 
       console.log('[fetchData] All queries completed. Setting state and setting isLoading to false.');
@@ -355,6 +428,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
         routines: formattedRoutines,
         checklist: dbChecklist || [],
         history: historyList,
+        streakDays: computedStreak,
         isLoading: false
       });
     } catch (err) {
@@ -530,11 +604,11 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
   },
 
   handleAddSessionToLog: async (item) => {
-    const { history, streakDays, user } = get();
+    const { history, user } = get();
     if (!user) return;
 
     const updated = [item, ...history];
-    const newStreak = streakDays + 1;
+    const newStreak = calculateStreak(updated);
     set({ 
       history: updated,
       streakDays: newStreak
