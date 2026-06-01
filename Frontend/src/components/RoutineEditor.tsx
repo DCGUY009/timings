@@ -9,7 +9,7 @@ import ConfirmationModal from './ConfirmationModal';
 
 interface RoutineEditorProps {
   routine: Routine | null; // null means "Create New"
-  onSave: (routine: Routine) => void;
+  onSave: (routine: Routine) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -178,6 +178,7 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
   }, 0);
 
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleSaveClick = () => {
     if (!name.trim()) return;
@@ -190,21 +191,27 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
     setShowSaveConfirm(true);
   };
 
-  const handleSaveRoutine = () => {
+  const handleSaveRoutine = async () => {
     const finalCategory = isCustomCategory
       ? (customCategoryInput.trim() || 'Custom')
       : category;
 
-    onSave({
-      id: routine?.id || `routine-custom-${Date.now()}`,
-      name: name.trim(),
-      description: description.trim(),
-      category: finalCategory,
-      steps: steps,
-      lastExecuted: routine?.lastExecuted || 'Never',
-      checklist: checklist,
-      tickingSoundEnabled: tickingSoundEnabled
-    });
+    setShowSaveConfirm(false);
+    setIsSaving(true);
+    try {
+      await onSave({
+        id: routine?.id || `routine-custom-${Date.now()}`,
+        name: name.trim(),
+        description: description.trim(),
+        category: finalCategory,
+        steps: steps,
+        lastExecuted: routine?.lastExecuted || 'Never',
+        checklist: checklist,
+        tickingSoundEnabled: tickingSoundEnabled
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -704,6 +711,22 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
         cancelText="No, Keep Editing"
         type="info"
       />
+
+      {/* Saving Overlay */}
+      {isSaving && (
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-[#060e20]/80 backdrop-blur-md">
+          <div className="flex flex-col items-center gap-5 bg-surface-container/90 border border-outline-variant/30 rounded-2xl px-10 py-8 shadow-2xl">
+            <svg className="animate-spin h-10 w-10 text-[#00f0ff]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <div className="text-center">
+              <p className="font-sans font-bold text-on-surface text-base">Saving Routine…</p>
+              <p className="text-xs font-sans text-on-surface-variant mt-1">Syncing to your account</p>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
