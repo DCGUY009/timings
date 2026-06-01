@@ -11,15 +11,42 @@ interface TimerScreenProps {
   onClose: (completed: boolean, durationMinutes: number) => void;
 }
 
-// Speech helper for verbal repetitions counting
-const speakRep = (num: number) => {
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(String(num));
-    utterance.rate = 1.0;  // natural, clear pace
-    utterance.pitch = 1.0;
-    window.speechSynthesis.speak(utterance);
+// Pick the best available English voice (prefers natural/neural voices)
+const pickVoice = (): SpeechSynthesisVoice | null => {
+  const voices = window.speechSynthesis?.getVoices() || [];
+  // Prefer high-quality English voices by name
+  const preferred = [
+    'Samantha', 'Karen', 'Daniel', 'Google US English',
+    'Microsoft Aria Online', 'Microsoft David Online',
+  ];
+  for (const name of preferred) {
+    const v = voices.find((v) => v.name.includes(name));
+    if (v) return v;
   }
+  // Fallback: any en-US or en-GB voice
+  return voices.find((v) => v.lang.startsWith('en')) || null;
+};
+
+// Warm up speech synthesis on user gesture so async calls work later
+const initSpeechSynthesis = () => {
+  if (!('speechSynthesis' in window)) return;
+  // Fire a zero-volume utterance to unlock the synthesis context
+  const u = new SpeechSynthesisUtterance('');
+  u.volume = 0;
+  window.speechSynthesis.speak(u);
+};
+
+// Speak a rep number aloud with the device's best English voice
+const speakRep = (num: number) => {
+  if (!('speechSynthesis' in window)) return;
+  // Don't cancel — let previous utterance finish or overlap naturally
+  const utterance = new SpeechSynthesisUtterance(String(num));
+  utterance.rate = 0.95;   // slightly slower than default for clarity
+  utterance.pitch = 1.0;
+  utterance.volume = 1.0;
+  const voice = pickVoice();
+  if (voice) utterance.voice = voice;
+  window.speechSynthesis.speak(utterance);
 };
 
 // Web Audio API precise beep generator
@@ -552,6 +579,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
             {/* Glowing start button */}
             <button
               onClick={() => {
+                initSpeechSynthesis(); // unlock speech synthesis from this user gesture
                 setPhase('timer');
                 setIsPlaying(true);
               }}
