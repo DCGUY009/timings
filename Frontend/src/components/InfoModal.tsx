@@ -168,7 +168,7 @@ export default function InfoModal({ isOpen, onClose, defaultTab }: InfoModalProp
                       <Mail className="w-4 h-4 text-primary-container" /> Contact Information
                     </h4>
                     <p>
-                      Have feedback, questions, or ideas for improving your routine architectures? We would love to hear from you.
+                      Have feedback, questions, or ideas for improving Timings? We would love to hear from you.
                     </p>
                     <div className="bg-surface-container-low border border-outline-variant/30 rounded-xl p-4 mt-2">
                       <p className="text-xs font-mono text-outline uppercase tracking-wider mb-1">
@@ -178,9 +178,6 @@ export default function InfoModal({ isOpen, onClose, defaultTab }: InfoModalProp
                         samudrala.santhosh.19cse@bmu.edu.in
                       </p>
                     </div>
-                    <p className="text-xs">
-                      Alternatively, feel free to use your default client to draft an email. We typically respond to queries within 2-3 business days.
-                    </p>
                   </motion.div>
                 )}
               </AnimatePresence>

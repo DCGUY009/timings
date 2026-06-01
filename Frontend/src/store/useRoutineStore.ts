@@ -70,11 +70,29 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
               .select('*')
               .eq('id', session.user.id)
               .single();
-            if (!error) {
+            if (!error && data) {
               profile = data;
               console.log('[Store Init] Profile fetched successfully:', profile);
             } else {
-              console.warn('[Store Init] Profile not found or error returned:', error);
+              console.warn('[Store Init] Profile not found. Attempting self-healing creation...');
+              const { data: newProfile, error: createError } = await supabase
+                .from('profiles')
+                .insert({
+                  id: session.user.id,
+                  name: name,
+                  email: email,
+                  is_pro: false,
+                  streak_days: 0,
+                  avatar_id: 'avatar-1'
+                })
+                .select()
+                .single();
+              if (!createError && newProfile) {
+                profile = newProfile;
+                console.log('[Store Init] Profile self-healed/created successfully:', profile);
+              } else {
+                console.error('[Store Init] Failed to create profile:', createError || 'No profile returned');
+              }
             }
           } catch (e) {
             console.error('[Store Init] Exception fetching profile:', e);
@@ -101,18 +119,12 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
             window.history.replaceState({}, document.title, window.location.origin);
           }
         } else {
-          console.log('[Store Init] No user session found. Loading local guest data.');
-          // Fallback to localStorage for guest users
-          const savedRoutines = localStorage.getItem('timings_saved_routines');
-          const savedChecklist = localStorage.getItem('timings_checklist');
-          const savedHistory = localStorage.getItem('timings_history');
-          const savedUser = localStorage.getItem('timings_user');
-          
+          console.log('[Store Init] No user session found. Initializing empty state.');
           set({
-            user: savedUser ? JSON.parse(savedUser) : null,
-            routines: savedRoutines ? JSON.parse(savedRoutines) : [...DEFAULT_ROUTINES],
-            checklist: savedChecklist ? JSON.parse(savedChecklist) : [...DEFAULT_CHECKLIST],
-            history: savedHistory ? JSON.parse(savedHistory) : [...DEFAULT_HISTORY],
+            user: null,
+            routines: [],
+            checklist: [],
+            history: [],
             streakDays: 0,
             isLoading: false
           });
@@ -123,7 +135,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       }
     };
 
-    // Get initial session synchronously/asynchronously from localStorage cache
+    // Get initial session
     let initialSession = null;
     try {
       console.log('[Store Init] Fetching initial session from getSession()...');
@@ -141,7 +153,6 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
     console.log('[Store Init] Registering onAuthStateChange listener');
     supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('[Store Init] onAuthStateChange event received:', event, 'User:', session?.user?.email || 'none');
-      // Process events that change auth state (SIGNED_IN, SIGNED_OUT, USER_UPDATED)
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
         await handleUserSession(session);
       }
@@ -171,27 +182,6 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       }
       console.log('[fetchData] Routines fetched successfully. Count:', dbRoutines?.length || 0);
 
-      const formattedRoutines: Routine[] = (dbRoutines || []).map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        description: r.description || '',
-        category: r.category || '',
-        lastExecuted: r.last_executed || undefined,
-        steps: (r.steps || []).sort((a: any, b: any) => a.position - b.position).map((s: any) => ({
-          id: s.id,
-          name: s.name,
-          description: s.description || '',
-          duration: s.duration,
-          cue: s.cue,
-          type: s.type
-        })),
-        checklist: (r.checklist || []).sort((a: any, b: any) => a.position - b.position).map((c: any) => ({
-          id: c.id,
-          label: c.label,
-          checked: c.checked
-        }))
-      }));
-
       // 2. Fetch Global Checklist Items
       console.log('[fetchData] Fetching global checklist items...');
       const { data: dbChecklist, error: checklistErr } = await supabase
@@ -219,6 +209,121 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
         throw historyErr;
       }
       console.log('[fetchData] Session history fetched successfully. Count:', dbHistory?.length || 0);
+
+      // --- SEED DATABASE IF NEW USER (0 ROUTINES IN CLOUD) ---
+      if (!dbRoutines || dbRoutines.length === 0) {
+        console.log('[fetchData] New user detected (0 cloud routines). Seeding defaults...');
+        
+        // Seed default routines
+        for (const routine of DEFAULT_ROUTINES) {
+          try {
+            await supabase.from('routines').insert({
+              id: routine.id,
+              user_id: userId,
+              name: routine.name,
+              description: routine.description,
+              category: routine.category,
+              last_executed: routine.lastExecuted
+            });
+
+            if (routine.steps && routine.steps.length > 0) {
+              await supabase.from('routine_steps').insert(
+                routine.steps.map((step, idx) => ({
+                  id: step.id,
+                  routine_id: routine.id,
+                  name: step.name,
+                  description: step.description,
+                  duration: step.duration,
+                  cue: step.cue,
+                  type: step.type,
+                  position: idx
+                }))
+              );
+            }
+
+            if (routine.checklist && routine.checklist.length > 0) {
+              await supabase.from('routine_checklist_items').insert(
+                routine.checklist.map((item, idx) => ({
+                  id: item.id,
+                  routine_id: routine.id,
+                  label: item.label,
+                  checked: item.checked,
+                  position: idx
+                }))
+              );
+            }
+          } catch (seedErr) {
+            console.error('[fetchData] Failed to seed routine:', routine.id, seedErr);
+          }
+        }
+
+        // Seed default global checklist
+        if (!dbChecklist || dbChecklist.length === 0) {
+          try {
+            await supabase.from('global_checklist_items').insert(
+              DEFAULT_CHECKLIST.map((item, idx) => ({
+                id: item.id,
+                user_id: userId,
+                label: item.label,
+                checked: item.checked,
+                position: idx
+              }))
+            );
+          } catch (seedErr) {
+            console.error('[fetchData] Failed to seed checklist items:', seedErr);
+          }
+        }
+
+        // Seed default history
+        if (!dbHistory || dbHistory.length === 0) {
+          try {
+            await supabase.from('session_history').insert(
+              DEFAULT_HISTORY.map((item) => ({
+                id: item.id,
+                user_id: userId,
+                routine_name: item.routineName,
+                timestamp: item.timestamp,
+                duration_minutes: item.durationMinutes,
+                completion_rate: item.completionRate
+              }))
+            );
+            
+            // Set user profile streak to match seeded history
+            await supabase
+              .from('profiles')
+              .update({ streak_days: DEFAULT_HISTORY.length })
+              .eq('id', userId);
+            set({ streakDays: DEFAULT_HISTORY.length });
+          } catch (seedErr) {
+            console.error('[fetchData] Failed to seed session history:', seedErr);
+          }
+        }
+
+        // Re-run fetchData to fetch the newly seeded items from DB
+        return get().fetchData(userId);
+      }
+      // --------------------------------------------------------
+
+      const formattedRoutines: Routine[] = (dbRoutines || []).map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        description: r.description || '',
+        category: r.category || '',
+        lastExecuted: r.last_executed || undefined,
+        steps: (r.steps || []).sort((a: any, b: any) => a.position - b.position).map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          description: s.description || '',
+          duration: s.duration,
+          cue: s.cue,
+          type: s.type
+        })),
+        checklist: (r.checklist || []).sort((a: any, b: any) => a.position - b.position).map((c: any) => ({
+          id: c.id,
+          label: c.label,
+          checked: c.checked
+        }))
+      }));
 
       const historyList = (dbHistory || []).map((h: any) => ({
         id: h.id,
@@ -275,10 +380,13 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       const targetRoutine = updated.find(r => r.id === routineId);
       const targetItem = targetRoutine?.checklist?.find(i => i.id === itemId);
       if (targetItem) {
-        await supabase
+        const { error } = await supabase
           .from('routine_checklist_items')
           .update({ checked: targetItem.checked })
           .eq('id', itemId);
+        if (error) {
+          console.error('[handleToggleRoutineCheck] Supabase update failed:', error.message, error.details);
+        }
       }
     } else {
       localStorage.setItem('timings_saved_routines', JSON.stringify(updated));
@@ -295,10 +403,13 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
     if (user) {
       const targetItem = updated.find(i => i.id === id);
       if (targetItem) {
-        await supabase
+        const { error } = await supabase
           .from('global_checklist_items')
           .update({ checked: targetItem.checked })
           .eq('id', id);
+        if (error) {
+          console.error('[handleToggleCheck] Supabase update failed:', error.message, error.details);
+        }
       }
     } else {
       localStorage.setItem('timings_checklist', JSON.stringify(updated));
@@ -323,11 +434,16 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
     set({ routines: updatedRoutines });
 
     if (user) {
-      const { data: authUser } = await supabase.auth.getUser();
-      if (!authUser.user) return;
+      const { data: authUser, error: authErr } = await supabase.auth.getUser();
+      if (authErr || !authUser.user) {
+        console.error('[handleSaveEditedRoutine] Auth error:', authErr || 'No user session');
+        return;
+      }
+
+      console.log('[handleSaveEditedRoutine] Saving routine to database...', savedRoutine.id);
 
       // 1. Upsert routine
-      await supabase.from('routines').upsert({
+      const { error: routineErr } = await supabase.from('routines').upsert({
         id: savedRoutine.id,
         user_id: authUser.user.id,
         name: savedRoutine.name,
@@ -335,11 +451,17 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
         category: savedRoutine.category,
         last_executed: savedRoutine.lastExecuted
       });
+      if (routineErr) {
+        console.error('[handleSaveEditedRoutine] Supabase upsert routine failed:', routineErr.message, routineErr.details);
+      }
 
       // 2. Refresh steps (Delete existing steps and insert new ones)
-      await supabase.from('routine_steps').delete().eq('routine_id', savedRoutine.id);
+      const { error: delStepsErr } = await supabase.from('routine_steps').delete().eq('routine_id', savedRoutine.id);
+      if (delStepsErr) {
+        console.error('[handleSaveEditedRoutine] Supabase delete steps failed:', delStepsErr.message, delStepsErr.details);
+      }
       if (savedRoutine.steps.length > 0) {
-        await supabase.from('routine_steps').insert(
+        const { error: insStepsErr } = await supabase.from('routine_steps').insert(
           savedRoutine.steps.map((step, idx) => ({
             id: step.id,
             routine_id: savedRoutine.id,
@@ -351,12 +473,18 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
             position: idx
           }))
         );
+        if (insStepsErr) {
+          console.error('[handleSaveEditedRoutine] Supabase insert steps failed:', insStepsErr.message, insStepsErr.details);
+        }
       }
 
       // 3. Refresh checklist items
-      await supabase.from('routine_checklist_items').delete().eq('routine_id', savedRoutine.id);
+      const { error: delCheckErr } = await supabase.from('routine_checklist_items').delete().eq('routine_id', savedRoutine.id);
+      if (delCheckErr) {
+        console.error('[handleSaveEditedRoutine] Supabase delete checklist failed:', delCheckErr.message, delCheckErr.details);
+      }
       if (savedRoutine.checklist && savedRoutine.checklist.length > 0) {
-        await supabase.from('routine_checklist_items').insert(
+        const { error: insCheckErr } = await supabase.from('routine_checklist_items').insert(
           savedRoutine.checklist.map((item, idx) => ({
             id: item.id,
             routine_id: savedRoutine.id,
@@ -365,6 +493,9 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
             position: idx
           }))
         );
+        if (insCheckErr) {
+          console.error('[handleSaveEditedRoutine] Supabase insert checklist failed:', insCheckErr.message, insCheckErr.details);
+        }
       }
     } else {
       localStorage.setItem('timings_saved_routines', JSON.stringify(updatedRoutines));
@@ -377,7 +508,10 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
     set({ routines: updated });
 
     if (user) {
-      await supabase.from('routines').delete().eq('id', id);
+      const { error } = await supabase.from('routines').delete().eq('id', id);
+      if (error) {
+        console.error('[handleDeleteRoutine] Supabase delete routine failed:', error.message, error.details);
+      }
     } else {
       localStorage.setItem('timings_saved_routines', JSON.stringify(updated));
     }
@@ -388,9 +522,14 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
     set({ history: [] });
 
     if (user) {
-      const { data: authUser } = await supabase.auth.getUser();
-      if (authUser.user) {
-        await supabase.from('session_history').delete().eq('user_id', authUser.user.id);
+      const { data: authUser, error: authErr } = await supabase.auth.getUser();
+      if (authErr || !authUser.user) {
+        console.error('[handleClearHistory] Auth error:', authErr || 'No user session');
+        return;
+      }
+      const { error } = await supabase.from('session_history').delete().eq('user_id', authUser.user.id);
+      if (error) {
+        console.error('[handleClearHistory] Supabase clear history failed:', error.message, error.details);
       }
     } else {
       localStorage.setItem('timings_history', JSON.stringify([]));
@@ -407,23 +546,31 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
     });
 
     if (user) {
-      const { data: authUser } = await supabase.auth.getUser();
-      if (authUser.user) {
-        // Insert into history table
-        await supabase.from('session_history').insert({
-          id: item.id,
-          user_id: authUser.user.id,
-          routine_name: item.routineName,
-          timestamp: item.timestamp,
-          duration_minutes: item.durationMinutes,
-          completion_rate: item.completionRate
-        });
+      const { data: authUser, error: authErr } = await supabase.auth.getUser();
+      if (authErr || !authUser.user) {
+        console.error('[handleAddSessionToLog] Auth error:', authErr || 'No user session');
+        return;
+      }
+      // Insert into history table
+      const { error: histErr } = await supabase.from('session_history').insert({
+        id: item.id,
+        user_id: authUser.user.id,
+        routine_name: item.routineName,
+        timestamp: item.timestamp,
+        duration_minutes: item.durationMinutes,
+        completion_rate: item.completionRate
+      });
+      if (histErr) {
+        console.error('[handleAddSessionToLog] Supabase insert history failed:', histErr.message, histErr.details);
+      }
 
-        // Update streak_days in user profile
-        await supabase
-          .from('profiles')
-          .update({ streak_days: newStreak })
-          .eq('id', authUser.user.id);
+      // Update streak_days in user profile
+      const { error: streakErr } = await supabase
+        .from('profiles')
+        .update({ streak_days: newStreak })
+        .eq('id', authUser.user.id);
+      if (streakErr) {
+        console.error('[handleAddSessionToLog] Supabase update streak failed:', streakErr.message, streakErr.details);
       }
     } else {
       localStorage.setItem('timings_history', JSON.stringify(updated));
@@ -431,7 +578,10 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
   },
 
   handleLogout: async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('[handleLogout] Sign out error:', error.message);
+    }
     localStorage.removeItem('timings_user');
     set({
       user: null,
@@ -476,10 +626,13 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       // Update local storage / DB last executed timestamp
       const { user } = get();
       if (user) {
-        await supabase
+        const { error } = await supabase
           .from('routines')
           .update({ last_executed: `Today, ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` })
           .eq('id', activeRoutine.id);
+        if (error) {
+          console.error('[handleTimerFinished] Supabase update last executed failed:', error.message, error.details);
+        }
       } else {
         localStorage.setItem('timings_saved_routines', JSON.stringify(updatedRoutines));
       }

@@ -65,6 +65,13 @@ export default function App() {
     }
   }, [user, currentScreen]);
 
+  // Redirect to landing if not logged in and trying to access app screens
+  useEffect(() => {
+    if (!user && currentScreen !== 'landing' && currentScreen !== 'auth') {
+      setCurrentScreen('landing');
+    }
+  }, [user, currentScreen]);
+
   // Update browser tab heading (document title) based on the active screen
   useEffect(() => {
     const screenTitles: Record<ActiveScreen, string> = {
@@ -216,13 +223,13 @@ export default function App() {
           />
         );
       default:
-        return <LandingPage onStart={() => setCurrentScreen('routines')} onNavigate={setCurrentScreen} />;
+        return <LandingPage onStart={() => setCurrentScreen('auth')} onNavigate={setCurrentScreen} />;
     }
   };
 
   // High Level Layout Outer shell switcher page frames
   if (currentScreen === 'landing') {
-    return <LandingPage onStart={() => setCurrentScreen('dashboard')} onNavigate={setCurrentScreen} />;
+    return <LandingPage onStart={() => setCurrentScreen('auth')} onNavigate={setCurrentScreen} />;
   }
 
   if (currentScreen === 'auth') {
