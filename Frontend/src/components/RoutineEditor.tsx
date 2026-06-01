@@ -5,6 +5,7 @@ import { Routine, PracticeStep, CueType, StepType, ChecklistItem } from '../type
 import { DEFAULT_CHECKLIST } from '../data/defaultRoutines';
 import { generateUniqueId } from '../utils/uniqueId';
 import { processAudioBuffer, trimAudioBuffer } from '../utils/audioFilter';
+import ConfirmationModal from './ConfirmationModal';
 
 interface RoutineEditorProps {
   routine: Routine | null; // null means "Create New"
@@ -173,7 +174,9 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
     return sum;
   }, 0);
 
-  const handleSaveRoutine = () => {
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+
+  const handleSaveClick = () => {
     if (!name.trim()) return;
 
     if (steps.length === 0) {
@@ -181,6 +184,10 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
       return;
     }
 
+    setShowSaveConfirm(true);
+  };
+
+  const handleSaveRoutine = () => {
     const finalCategory = isCustomCategory
       ? (customCategoryInput.trim() || 'Custom')
       : category;
@@ -565,7 +572,7 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
             </button>
 
             <button
-              onClick={handleSaveRoutine}
+              onClick={handleSaveClick}
               className="flex items-center justify-center gap-2 bg-primary-container text-on-primary-container font-sans font-bold px-8 py-3.5 rounded-xl hover:bg-white cursor-pointer transition-all active:scale-[0.98] glow-button shadow-cyan-500/10"
             >
               <Save className="w-4 h-4 fill-current" /> Save Routine
@@ -682,6 +689,18 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal for Saving Routine */}
+      <ConfirmationModal
+        isOpen={showSaveConfirm}
+        onClose={() => setShowSaveConfirm(false)}
+        onConfirm={handleSaveRoutine}
+        title="Ready to Save?"
+        message="Are you sure you want to save this routine and exit?"
+        confirmText="Yes, Save"
+        cancelText="No, Keep Editing"
+        type="info"
+      />
     </motion.div>
   );
 }
@@ -1287,7 +1306,7 @@ function InteractiveWaveTrimmer({
         }`}
       >
         {/* Inner track with rounded corners and overflow-hidden */}
-        <div className="absolute inset-0 bg-surface-container-lowest/80 border border-outline-variant/35 rounded-xl overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-transparent border border-outline-variant/35 rounded-xl overflow-hidden pointer-events-none">
           <div className="absolute inset-0 opacity-5 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:10px_10px]" />
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full p-2" />
         </div>
