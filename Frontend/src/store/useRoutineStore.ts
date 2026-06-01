@@ -277,14 +277,25 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       console.log('[fetchData] Session history fetched successfully. Count:', dbHistory?.length || 0);
 
       // --- SEED DATABASE IF NEW USER (0 ROUTINES IN CLOUD) ---
-      const alreadySeeded = localStorage.getItem(`timings_seeded_${userId}`) === 'true';
+      // Get the profile created_at timestamp from the DB to verify account age.
+      // If the account was created more than 5 minutes ago, they are not a new user
+      // and we shouldn't re-seed defaults even if they deleted all their routines.
+      const { data: profileRow } = await supabase
+        .from('profiles')
+        .select('created_at')
+        .eq('id', userId)
+        .single();
+      
+      const profileCreatedAt = profileRow?.created_at ? new Date(profileRow.created_at).getTime() : Date.now();
+      const profileAgeMs = Date.now() - profileCreatedAt;
+      const isNewProfile = profileAgeMs < 5 * 60 * 1000; // 5 minutes
+
       const hasSomeData = (dbRoutines && dbRoutines.length > 0) || 
                           (dbChecklist && dbChecklist.length > 0) || 
                           (dbHistory && dbHistory.length > 0);
 
-      if ((!dbRoutines || dbRoutines.length === 0) && !alreadySeeded && !hasSomeData) {
+      if ((!dbRoutines || dbRoutines.length === 0) && isNewProfile && !hasSomeData) {
         console.log('[fetchData] New user detected (0 cloud routines). Seeding defaults...');
-        localStorage.setItem(`timings_seeded_${userId}`, 'true');
         
         // Seed default routines
         for (const routine of DEFAULT_ROUTINES) {
@@ -391,9 +402,6 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
 
         // Re-run fetchData to fetch the newly seeded items from DB
         return get().fetchData(userId);
-      } else {
-        // Mark as seeded in local storage since they already have routines/history
-        localStorage.setItem(`timings_seeded_${userId}`, 'true');
       }
       // ------------------------------------------------------------
 
