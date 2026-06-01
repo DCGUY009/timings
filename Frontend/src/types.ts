@@ -1,6 +1,8 @@
 export type CueType = 'single-chime' | 'double-chime' | 'silent';
 export type StepType = 'work' | 'rest' | 'interval' | 'flow';
 
+export type StepFormat = 'duration' | 'reps' | 'audio-loop';
+
 export interface PracticeStep {
   id: string;
   name: string;
@@ -8,6 +10,11 @@ export interface PracticeStep {
   duration: number; // in seconds
   cue: CueType;
   type: StepType;
+  stepFormat?: StepFormat;
+  sets?: number;
+  reps?: number;
+  repPace?: number;
+  audioData?: string; // base64 encoded audio string
 }
 
 export interface Routine {

@@ -104,6 +104,11 @@ export interface Database {
           cue: string
           type: string
           position: number
+          step_format: string
+          sets: number
+          reps: number
+          rep_pace: number
+          audio_base64: string | null
         }
         Insert: {
           id: string
@@ -114,6 +119,11 @@ export interface Database {
           cue: string
           type: string
           position: number
+          step_format?: string
+          sets?: number
+          reps?: number
+          rep_pace?: number
+          audio_base64?: string | null
         }
         Update: {
           id?: string
@@ -124,6 +134,11 @@ export interface Database {
           cue?: string
           type?: string
           position?: number
+          step_format?: string
+          sets?: number
+          reps?: number
+          rep_pace?: number
+          audio_base64?: string | null
         }
         Relationships: [
           {

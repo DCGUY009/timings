@@ -305,7 +305,12 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
                   duration: step.duration,
                   cue: step.cue,
                   type: step.type,
-                  position: idx
+                  position: idx,
+                  step_format: step.stepFormat || 'duration',
+                  sets: step.sets || 1,
+                  reps: step.reps || 1,
+                  rep_pace: step.repPace || 3.0,
+                  audio_base64: step.audioData || null
                 }))
               );
             }
@@ -396,7 +401,12 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
           description: s.description || '',
           duration: s.duration,
           cue: s.cue,
-          type: s.type
+          type: s.type,
+          stepFormat: s.step_format,
+          sets: s.sets,
+          reps: s.reps,
+          repPace: s.rep_pace,
+          audioData: s.audio_base64 || undefined
         })),
         checklist: (r.checklist || []).sort((a: any, b: any) => a.position - b.position).map((c: any) => ({
           id: c.id,
@@ -546,7 +556,12 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
           duration: step.duration,
           cue: step.cue,
           type: step.type,
-          position: idx
+          position: idx,
+          step_format: step.stepFormat || 'duration',
+          sets: step.sets || 1,
+          reps: step.reps || 1,
+          rep_pace: step.repPace || 3.0,
+          audio_base64: step.audioData || null
         }))
       );
       if (insStepsErr) {

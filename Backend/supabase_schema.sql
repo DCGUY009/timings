@@ -39,7 +39,12 @@ create table public.routine_steps (
   duration integer not null,
   cue text not null check (cue in ('single-chime', 'double-chime', 'silent')),
   type text not null check (type in ('work', 'rest', 'interval', 'flow')),
-  position integer not null
+  position integer not null,
+  step_format text not null default 'duration' check (step_format in ('duration', 'reps', 'audio-loop')),
+  sets integer not null default 1 check (sets >= 1),
+  reps integer not null default 1 check (reps >= 1),
+  rep_pace numeric not null default 3.0 check (rep_pace > 0),
+  audio_base64 text
 );
 
 -- Create routine checklist items table

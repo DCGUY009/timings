@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { Trash2, Plus, GripVertical, Save, ArrowLeft, Check, Play, ChevronUp, ChevronDown } from 'lucide-react';
+import { Trash2, Plus, GripVertical, Save, ArrowLeft, Check, Play, ChevronUp, ChevronDown, Mic, Square, Pause } from 'lucide-react';
 import { Routine, PracticeStep, CueType, StepType, ChecklistItem } from '../types';
 import { DEFAULT_CHECKLIST } from '../data/defaultRoutines';
 import { generateUniqueId } from '../utils/uniqueId';
@@ -135,10 +135,42 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Calculate stats
-  const totalDuration = steps.reduce((sum, s) => sum + s.duration, 0);
-  const totalWork = steps.filter((s) => s.type !== 'rest').reduce((sum, s) => sum + s.duration, 0);
-  const totalRest = steps.filter((s) => s.type === 'rest').reduce((sum, s) => sum + s.duration, 0);
+  // Calculate stats dynamically based on format
+  const getStepDuration = (s: PracticeStep) => {
+    if (s.stepFormat === 'reps') {
+      const sets = s.sets || 1;
+      const reps = s.reps || 12;
+      const repPace = s.repPace || 3.0;
+      const rest = s.duration; // set rest stored in duration
+      return Math.round((sets * reps * repPace) + ((sets - 1) * rest));
+    } else if (s.stepFormat === 'audio-loop') {
+      // Estimate 3 seconds per loop for statistics
+      return (s.reps || 21) * 3;
+    }
+    return s.duration;
+  };
+
+  const totalDuration = steps.reduce((sum, s) => sum + getStepDuration(s), 0);
+  const totalWork = steps.filter((s) => s.type !== 'rest').reduce((sum, s) => {
+    if (s.stepFormat === 'reps') {
+      const sets = s.sets || 1;
+      const reps = s.reps || 12;
+      const repPace = s.repPace || 3.0;
+      return sum + Math.round(sets * reps * repPace);
+    }
+    return sum + (s.stepFormat === 'audio-loop' ? getStepDuration(s) : s.duration);
+  }, 0);
+  const totalRest = steps.reduce((sum, s) => {
+    if (s.type === 'rest') {
+      return sum + (s.stepFormat === 'audio-loop' ? getStepDuration(s) : s.duration);
+    }
+    if (s.stepFormat === 'reps') {
+      const sets = s.sets || 1;
+      const rest = s.duration;
+      return sum + Math.round((sets - 1) * rest);
+    }
+    return sum;
+  }, 0);
 
   const handleSaveRoutine = () => {
     if (!name.trim()) return;
@@ -323,40 +355,42 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
 
                       {/* Time selector (Hours:Mins block in Monospace matching digital inputs in Image 1) */}
                       <div className="flex items-center gap-2 shrink-0 self-center">
-                        <div className="bg-surface-container border border-outline-variant/45 rounded-lg px-3 py-1.5 flex flex-col items-center">
-                          <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
-                            Duration
-                          </span>
-                          <div className="flex items-center gap-1 font-mono text-sm font-bold text-primary-container">
-                            {/* Minutes */}
-                            <select
-                              value={minutes}
-                              onChange={(e) => {
-                                const newSec = parseInt(e.target.value) * 60 + seconds;
-                                handleUpdateStep(step.id, { duration: newSec });
-                              }}
-                              className="bg-transparent text-primary-container font-bold border-none outline-none focus:ring-0 cursor-pointer"
-                            >
-                              {Array.from({ length: 60 }).map((_, i) => (
-                                <option key={i} value={i} className="bg-surface-container-high">{i.toString().padStart(2, '0')}</option>
-                              ))}
-                            </select>
-                            <span>:</span>
-                            {/* Seconds */}
-                            <select
-                              value={seconds}
-                              onChange={(e) => {
-                                const newSec = minutes * 60 + parseInt(e.target.value);
-                                handleUpdateStep(step.id, { duration: newSec });
-                              }}
-                              className="bg-transparent text-primary-container font-bold border-none outline-none focus:ring-0 cursor-pointer"
-                            >
-                              {Array.from({ length: 12 }).map((_, i) => (
-                                <option key={i * 5} value={i * 5} className="bg-surface-container-high">{(i * 5).toString().padStart(2, '0')}</option>
-                              ))}
-                            </select>
+                        {step.stepFormat !== 'audio-loop' && (
+                          <div className="bg-surface-container border border-outline-variant/45 rounded-lg px-3 py-1.5 flex flex-col items-center">
+                            <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
+                              {step.stepFormat === 'reps' ? 'Set Rest' : 'Duration'}
+                            </span>
+                            <div className="flex items-center gap-1 font-mono text-sm font-bold text-primary-container">
+                              {/* Minutes */}
+                              <select
+                                value={minutes}
+                                onChange={(e) => {
+                                  const newSec = parseInt(e.target.value) * 60 + seconds;
+                                  handleUpdateStep(step.id, { duration: newSec });
+                                }}
+                                className="bg-transparent text-primary-container font-bold border-none outline-none focus:ring-0 cursor-pointer"
+                              >
+                                {Array.from({ length: 60 }).map((_, i) => (
+                                  <option key={i} value={i} className="bg-surface-container-high">{i.toString().padStart(2, '0')}</option>
+                                ))}
+                              </select>
+                              <span>:</span>
+                              {/* Seconds */}
+                              <select
+                                value={seconds}
+                                onChange={(e) => {
+                                  const newSec = minutes * 60 + parseInt(e.target.value);
+                                  handleUpdateStep(step.id, { duration: newSec });
+                                }}
+                                className="bg-transparent text-primary-container font-bold border-none outline-none focus:ring-0 cursor-pointer"
+                              >
+                                {Array.from({ length: 12 }).map((_, i) => (
+                                  <option key={i * 5} value={i * 5} className="bg-surface-container-high">{(i * 5).toString().padStart(2, '0')}</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
-                        </div>
+                        )}
 
                         {/* Cue Picker Selector Block */}
                         <div className="bg-surface-container border border-outline-variant/45 rounded-lg px-3 py-1.5 flex flex-col items-center">
@@ -391,6 +425,106 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
                           </select>
                         </div>
                       </div>
+                    </div>
+
+                    {/* V2 Format Details and Recording block row */}
+                    <div className="flex flex-wrap items-center gap-3 pt-2.5 border-t border-outline-variant/10">
+                      {/* Format Selector */}
+                      <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
+                        <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
+                          Format
+                        </span>
+                        <select
+                          value={step.stepFormat || 'duration'}
+                          onChange={(e) => {
+                            const fmt = e.target.value as any;
+                            handleUpdateStep(step.id, { 
+                              stepFormat: fmt,
+                              sets: step.sets || 1,
+                              reps: step.reps || (fmt === 'audio-loop' ? 21 : 12),
+                              repPace: step.repPace || 3.0
+                            });
+                          }}
+                          className="bg-transparent text-primary-container font-mono font-bold text-[10px] focus:outline-none cursor-pointer outline-none uppercase"
+                        >
+                          <option value="duration" className="bg-surface-container-high">Time</option>
+                          <option value="reps" className="bg-surface-container-high">Reps</option>
+                          <option value="audio-loop" className="bg-surface-container-high">Audio Loop</option>
+                        </select>
+                      </div>
+
+                      {/* Reps-specific inputs */}
+                      {step.stepFormat === 'reps' && (
+                        <>
+                          <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
+                            <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
+                              Sets
+                            </span>
+                            <input
+                              type="number"
+                              min="1"
+                              value={step.sets || 1}
+                              onChange={(e) => handleUpdateStep(step.id, { sets: Math.max(1, parseInt(e.target.value) || 1) })}
+                              className="w-8 bg-transparent text-center font-mono font-bold text-xs text-on-surface focus:outline-none outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                          </div>
+
+                          <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
+                            <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
+                              Reps/Set
+                            </span>
+                            <input
+                              type="number"
+                              min="1"
+                              value={step.reps || 12}
+                              onChange={(e) => handleUpdateStep(step.id, { reps: Math.max(1, parseInt(e.target.value) || 1) })}
+                              className="w-10 bg-transparent text-center font-mono font-bold text-xs text-on-surface focus:outline-none outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                          </div>
+
+                          <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
+                            <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
+                              Rep Pace
+                            </span>
+                            <select
+                              value={step.repPace || 3.0}
+                              onChange={(e) => handleUpdateStep(step.id, { repPace: parseFloat(e.target.value) })}
+                              className="bg-transparent text-on-surface font-mono font-bold text-[10px] focus:outline-none cursor-pointer outline-none"
+                            >
+                              <option value="1" className="bg-surface-container-high">1.0s / rep</option>
+                              <option value="1.5" className="bg-surface-container-high">1.5s / rep</option>
+                              <option value="2" className="bg-surface-container-high">2.0s / rep</option>
+                              <option value="2.5" className="bg-surface-container-high">2.5s / rep</option>
+                              <option value="3" className="bg-surface-container-high">3.0s / rep</option>
+                              <option value="4" className="bg-surface-container-high">4.0s / rep</option>
+                              <option value="5" className="bg-surface-container-high">5.0s / rep</option>
+                            </select>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Audio loop-specific inputs */}
+                      {step.stepFormat === 'audio-loop' && (
+                        <>
+                          <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
+                            <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
+                              Loops
+                            </span>
+                            <input
+                              type="number"
+                              min="1"
+                              value={step.reps || 21}
+                              onChange={(e) => handleUpdateStep(step.id, { reps: Math.max(1, parseInt(e.target.value) || 1) })}
+                              className="w-10 bg-transparent text-center font-mono font-bold text-xs text-on-surface focus:outline-none outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                          </div>
+
+                          <AudioRecorder
+                            audioData={step.audioData}
+                            onSaveAudio={(base64) => handleUpdateStep(step.id, { audioData: base64 })}
+                          />
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -536,5 +670,154 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
         </div>
       </div>
     </motion.div>
+  );
+}
+
+interface AudioRecorderProps {
+  audioData?: string;
+  onSaveAudio: (base64: string) => void;
+}
+
+function AudioRecorder({ audioData, onSaveAudio }: AudioRecorderProps) {
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    if (audioData) {
+      setAudioUrl(audioData);
+    } else {
+      setAudioUrl(null);
+    }
+  }, [audioData]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      
+      const chunks: Blob[] = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+      
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          onSaveAudio(base64data);
+          setAudioUrl(base64data);
+        };
+        
+        stream.getTracks().forEach((track) => track.stop());
+      };
+      
+      setRecordingTime(0);
+      setIsRecording(true);
+      mediaRecorder.start();
+      
+      timerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error('Failed to get mic access', err);
+      alert('Microphone access is required to record custom audio loops.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
+
+  const playPreview = () => {
+    if (!audioUrl) return;
+    
+    if (isPlaying) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      setIsPlaying(false);
+    } else {
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      setIsPlaying(true);
+      audio.play();
+      audio.onended = () => {
+        setIsPlaying(false);
+      };
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3 bg-surface-container-high/40 border border-outline-variant/20 rounded-xl px-4 py-2 text-xs font-mono w-full sm:w-auto">
+      {isRecording ? (
+        <div className="flex items-center gap-3 text-red-400">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+          <span>Rec ({recordingTime}s)</span>
+          <button
+            type="button"
+            onClick={stopRecording}
+            className="p-1 bg-red-500/15 border border-red-500/30 hover:bg-red-500/30 text-red-400 rounded-lg cursor-pointer transition-colors"
+          >
+            <Square className="w-3.5 h-3.5 fill-current" />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={startRecording}
+            className="flex items-center gap-1 px-2.5 py-1 bg-primary-container/10 border border-primary-container/20 hover:border-[#00f0ff] text-[#00f0ff] rounded-lg cursor-pointer transition-colors"
+          >
+            <Mic className="w-3.5 h-3.5" />
+            <span>Record Mantra</span>
+          </button>
+          
+          {audioUrl && (
+            <div className="flex items-center gap-2 border-l border-outline-variant/30 pl-2">
+              <button
+                type="button"
+                onClick={playPreview}
+                className="flex items-center gap-1 px-2.5 py-1 bg-surface-container border border-outline-variant/40 hover:border-outline-variant text-on-surface rounded-lg cursor-pointer transition-colors"
+              >
+                {isPlaying ? (
+                  <Pause className="w-3 h-3 fill-current" />
+                ) : (
+                  <Play className="w-3 h-3 fill-current" />
+                )}
+                <span>{isPlaying ? 'Pause' : 'Play'}</span>
+              </button>
+              <span className="text-[10px] text-on-surface-variant font-sans">Recorded</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
