@@ -2,5 +2,5 @@
   "name": "Timings",
   "description": "Silent Conductor routines built for focus, interval exercise, and morning breathwork using precise audio timers and cues.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }
