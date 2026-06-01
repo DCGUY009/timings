@@ -526,17 +526,18 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       const { routines, user } = get();
       if (!user) return;
 
-      const { data: authUser, error: authErr } = await supabase.auth.getUser();
-      if (authErr || !authUser.user) {
+      const { data: { session }, error: authErr } = await supabase.auth.getSession();
+      if (authErr || !session?.user) {
         throw new Error(authErr?.message || 'No active user session found.');
       }
 
+      const activeUser = session.user;
       console.log('[handleSaveEditedRoutine] Saving routine to database...', savedRoutine.id);
 
       // 1. Upsert routine
       const { error: routineErr } = await supabase.from('routines').upsert({
         id: savedRoutine.id,
-        user_id: authUser.user.id,
+        user_id: activeUser.id,
         name: savedRoutine.name,
         description: savedRoutine.description,
         category: savedRoutine.category,
@@ -559,13 +560,13 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
             routine_id: savedRoutine.id,
             name: step.name,
             description: step.description,
-            duration: step.duration,
+            duration: Math.max(1, Math.round(step.duration)),
             cue: step.cue,
             type: step.type,
             position: idx,
             step_format: step.stepFormat || 'duration',
-            sets: step.sets || 1,
-            reps: step.reps || 1,
+            sets: Math.max(1, Math.round(step.sets || 1)),
+            reps: Math.max(1, Math.round(step.reps || 1)),
             rep_pace: step.repPace || 3.0,
             audio_base64: step.audioData || null
           }))

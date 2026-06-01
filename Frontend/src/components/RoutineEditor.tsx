@@ -149,8 +149,8 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
       const rest = s.duration; // set rest stored in duration
       return Math.round((sets * reps * repPace) + ((sets - 1) * rest));
     } else if (s.stepFormat === 'audio-loop') {
-      // Estimate 3 seconds per loop for statistics
-      return (s.reps || 21) * 3;
+      const loopLen = s.audioData ? (s.duration || 3) : 3;
+      return Math.round((s.reps || 21) * loopLen);
     }
     return s.duration;
   };
@@ -544,7 +544,7 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
                           <AudioRecorder
                             key={step.id}
                             audioData={step.audioData}
-                            onSaveAudio={(base64) => handleUpdateStep(step.id, { audioData: base64 })}
+                            onSaveAudio={(base64, duration) => handleUpdateStep(step.id, { audioData: base64, duration: Math.max(1, Math.round(duration)) })}
                           />
                         </div>
                       )}
@@ -711,7 +711,7 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
 interface AudioRecorderProps {
   key?: string;
   audioData?: string;
-  onSaveAudio: (base64: string) => void;
+  onSaveAudio: (base64: string, duration: number) => void;
 }
 
 function AudioRecorderComponent({ audioData, onSaveAudio }: AudioRecorderProps) {
@@ -920,7 +920,7 @@ function AudioRecorderComponent({ audioData, onSaveAudio }: AudioRecorderProps) 
       reader.readAsDataURL(finalBlob);
       reader.onloadend = () => {
         const base64data = reader.result as string;
-        onSaveAudio(base64data);
+        onSaveAudio(base64data, audioBuffer.duration);
         setAudioUrl(base64data);
         setIsProcessing(false);
       };
@@ -942,7 +942,7 @@ function AudioRecorderComponent({ audioData, onSaveAudio }: AudioRecorderProps) 
       reader.readAsDataURL(processedBlob);
       reader.onloadend = () => {
         const base64data = reader.result as string;
-        onSaveAudio(base64data);
+        onSaveAudio(base64data, trimmed.duration);
         setAudioUrl(base64data);
         setIsProcessing(false);
       };
@@ -966,7 +966,7 @@ function AudioRecorderComponent({ audioData, onSaveAudio }: AudioRecorderProps) 
         reader.readAsDataURL(processedBlob);
         reader.onloadend = () => {
           const base64data = reader.result as string;
-          onSaveAudio(base64data);
+          onSaveAudio(base64data, trimmed.duration);
           setAudioUrl(base64data);
           setIsProcessing(false);
         };
