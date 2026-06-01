@@ -25,25 +25,25 @@ export async function processAudioBuffer(
     const source = offlineCtx.createBufferSource();
     source.buffer = audioBuffer;
 
-    // 2. Create Highpass Filter (120Hz): Cuts out low-frequency hum/rumble
+    // 2. Create Highpass Filter (80Hz): Cuts out low-frequency hum/rumble without stripping vocal body
     const highpass = offlineCtx.createBiquadFilter();
     highpass.type = 'highpass';
-    highpass.frequency.setValueAtTime(120, offlineCtx.currentTime);
+    highpass.frequency.setValueAtTime(80, offlineCtx.currentTime);
     highpass.Q.setValueAtTime(0.707, offlineCtx.currentTime);
 
-    // 3. Create Lowpass Filter (6000Hz): Cuts out high-frequency hiss
+    // 3. Create Lowpass Filter (12000Hz): Cuts out high-frequency hiss while preserving sibilance and clarity
     const lowpass = offlineCtx.createBiquadFilter();
     lowpass.type = 'lowpass';
-    lowpass.frequency.setValueAtTime(6000, offlineCtx.currentTime);
+    lowpass.frequency.setValueAtTime(12000, offlineCtx.currentTime);
     lowpass.Q.setValueAtTime(0.707, offlineCtx.currentTime);
 
-    // 4. Create Dynamics Compressor Node: evens out vocals
+    // 4. Create Dynamics Compressor Node: evens out vocals gently without squashing
     const compressor = offlineCtx.createDynamicsCompressor();
-    compressor.threshold.setValueAtTime(-32, offlineCtx.currentTime); // dB
+    compressor.threshold.setValueAtTime(-20, offlineCtx.currentTime); // dB
     compressor.knee.setValueAtTime(30, offlineCtx.currentTime); // dB
-    compressor.ratio.setValueAtTime(8, offlineCtx.currentTime); // ratio
-    compressor.attack.setValueAtTime(0.003, offlineCtx.currentTime); // seconds
-    compressor.release.setValueAtTime(0.25, offlineCtx.currentTime); // seconds
+    compressor.ratio.setValueAtTime(3, offlineCtx.currentTime); // ratio
+    compressor.attack.setValueAtTime(0.01, offlineCtx.currentTime); // seconds
+    compressor.release.setValueAtTime(0.15, offlineCtx.currentTime); // seconds
 
     // Connect Node Graph: Source -> Highpass -> Lowpass -> Compressor -> Destination
     source.connect(highpass);
@@ -55,8 +55,8 @@ export async function processAudioBuffer(
     source.start(0);
     processedBuffer = await offlineCtx.startRendering();
 
-    // 5. Apply smooth Noise Gate to the final processed buffer to silence room noise in silent sections
-    applyNoiseGate(processedBuffer, -42, -60);
+    // 5. Apply smooth Noise Gate to the final processed buffer to gently attenuate room noise in silent sections
+    applyNoiseGate(processedBuffer, -48, -24);
   }
 
   // Encode the final audio buffer to WAV

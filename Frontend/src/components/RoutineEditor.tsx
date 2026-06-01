@@ -933,7 +933,6 @@ function AudioRecorderComponent({ audioData, onSaveAudio }: AudioRecorderProps) 
 
   const applyTrimAndProcess = async (start: number, end: number) => {
     if (!rawBufferRef.current) return;
-    setIsProcessing(true);
     try {
       const trimmed = trimAudioBuffer(rawBufferRef.current, start, end);
       const processedBlob = await processAudioBuffer(trimmed, noiseRemovalEnabled);
@@ -944,11 +943,9 @@ function AudioRecorderComponent({ audioData, onSaveAudio }: AudioRecorderProps) 
         const base64data = reader.result as string;
         onSaveAudio(base64data, trimmed.duration);
         setAudioUrl(base64data);
-        setIsProcessing(false);
       };
     } catch (err) {
       console.error('Failed to apply trim:', err);
-      setIsProcessing(false);
     }
   };
 
@@ -957,7 +954,6 @@ function AudioRecorderComponent({ audioData, onSaveAudio }: AudioRecorderProps) 
     setNoiseRemovalEnabled(nextVal);
     
     if (rawBufferRef.current) {
-      setIsProcessing(true);
       try {
         const trimmed = trimAudioBuffer(rawBufferRef.current, trimStart, trimEnd);
         const processedBlob = await processAudioBuffer(trimmed, nextVal);
@@ -968,11 +964,9 @@ function AudioRecorderComponent({ audioData, onSaveAudio }: AudioRecorderProps) 
           const base64data = reader.result as string;
           onSaveAudio(base64data, trimmed.duration);
           setAudioUrl(base64data);
-          setIsProcessing(false);
         };
       } catch (err) {
         console.error('Failed to apply noise clean toggle:', err);
-        setIsProcessing(false);
       }
     }
   };
