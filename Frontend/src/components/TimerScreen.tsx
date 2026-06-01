@@ -11,45 +11,7 @@ interface TimerScreenProps {
   onClose: (completed: boolean, durationMinutes: number) => void;
 }
 
-// Pick the best available English voice (prefers natural/neural voices)
-const pickVoice = (): SpeechSynthesisVoice | null => {
-  const voices = window.speechSynthesis?.getVoices() || [];
-  // Prefer high-quality English voices by name
-  const preferred = [
-    'Samantha', 'Karen', 'Daniel', 'Google US English',
-    'Microsoft Aria Online', 'Microsoft David Online',
-  ];
-  for (const name of preferred) {
-    const v = voices.find((v) => v.name.includes(name));
-    if (v) return v;
-  }
-  // Fallback: any en-US or en-GB voice
-  return voices.find((v) => v.lang.startsWith('en')) || null;
-};
-
-// Warm up speech synthesis on user gesture so async calls work later
-const initSpeechSynthesis = () => {
-  if (!('speechSynthesis' in window)) return;
-  // Fire a zero-volume utterance to unlock the synthesis context
-  const u = new SpeechSynthesisUtterance('');
-  u.volume = 0;
-  window.speechSynthesis.speak(u);
-};
-
-// Speak a rep number aloud with the device's best English voice
-const speakRep = (num: number) => {
-  if (!('speechSynthesis' in window)) return;
-  // Don't cancel — let previous utterance finish or overlap naturally
-  const utterance = new SpeechSynthesisUtterance(String(num));
-  utterance.rate = 0.95;   // slightly slower than default for clarity
-  utterance.pitch = 1.0;
-  utterance.volume = 1.0;
-  const voice = pickVoice();
-  if (voice) utterance.voice = voice;
-  window.speechSynthesis.speak(utterance);
-};
-
-// Web Audio API precise beep generator
+// Web Audio API precise beep generator (kept for cue sounds)
 const playPacerBeep = (freq = 800, duration = 0.08) => {
   try {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -115,13 +77,10 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
   const getPercentComplete = () => {
     if (!currentStep) return 0;
     if (currentStep.stepFormat === 'reps') {
-      if (repSubPhase === 'work') {
-        const pace = currentStep.repPace || 3.0;
-        return ((pace - timeLeft) / pace) * 100;
-      } else {
-        const rest = currentStep.duration || 30;
-        return ((rest - timeLeft) / rest) * 100;
-      }
+      // Show overall rep progress across all sets (fills as reps complete)
+      const maxReps = (currentStep.reps || 12) * (currentStep.sets || 1);
+      const completedReps = ((currentSet - 1) * (currentStep.reps || 12)) + Math.max(0, currentRep - 1);
+      return (completedReps / maxReps) * 100;
     } else if (currentStep.stepFormat === 'audio-loop') {
       const maxLoops = currentStep.reps || 21;
       return (currentRep / maxLoops) * 100;
@@ -133,6 +92,49 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Best available speech synthesis voice — loaded on mount and on voiceschanged
+  const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+    const loadVoice = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = ['Samantha', 'Karen', 'Daniel', 'Google US English', 'Microsoft Aria Online'];
+      for (const name of preferred) {
+        const v = voices.find((v) => v.name.includes(name));
+        if (v) { voiceRef.current = v; return; }
+      }
+      voiceRef.current = voices.find((v) => v.lang.startsWith('en')) || null;
+    };
+    loadVoice();
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoice);
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoice);
+  }, []);
+
+  // Speak the current rep number whenever currentRep changes (React lifecycle — more browser-friendly)
+  const lastSpokenRepRef = useRef(0);
+  useEffect(() => {
+    if (
+      currentStep?.stepFormat === 'reps' &&
+      phase === 'timer' &&
+      isPlaying &&
+      repSubPhase === 'work' &&
+      currentRep > 0 &&
+      currentRep !== lastSpokenRepRef.current
+    ) {
+      lastSpokenRepRef.current = currentRep;
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.resume();
+        const u = new SpeechSynthesisUtterance(String(currentRep));
+        u.rate = 0.9;
+        u.pitch = 1.0;
+        u.volume = 1.0;
+        if (voiceRef.current) u.voice = voiceRef.current;
+        window.speechSynthesis.speak(u);
+      }
+    }
+  }, [currentRep, phase, isPlaying, repSubPhase]);
 
   // Refs that mirror reps state so the interval callback always reads fresh values
   const repRef = useRef(0);
@@ -214,11 +216,10 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
     if (currentStep.stepFormat === 'audio-loop') return; // audio-loop handled by its own effect
 
     if (currentStep.stepFormat === 'reps') {
-      // Speak rep 1 immediately when the interval first starts
+      // Set rep to 1 immediately when interval starts
       if (repRef.current === 0) {
         repRef.current = 1;
-        setCurrentRep(1);
-        speakRep(1);
+        setCurrentRep(1); // this triggers the speech useEffect above
       }
 
       timerRef.current = setInterval(() => {
@@ -230,10 +231,9 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
             const maxReps = stepRef.current.reps || 12;
 
             if (nextRep <= maxReps) {
-              // Next rep
+              // Next rep — state update triggers the speech useEffect
               repRef.current = nextRep;
               setCurrentRep(nextRep);
-              speakRep(nextRep);
               const pace = stepRef.current.repPace || 3.0;
               timeLeftRef.current = pace;
               setTimeLeft(pace);
@@ -248,14 +248,12 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
                 timeLeftRef.current = restTime;
                 setTimeLeft(restTime);
               } else {
-                // All sets completed
                 clearInterval(timerRef.current!);
                 playCueSound(stepRef.current);
                 handleNextStep();
               }
             }
           } else {
-            // Countdown silently — no tick during reps
             setTimeLeft(timeLeftRef.current);
           }
         } else {
@@ -265,15 +263,13 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
             setRef.current = nextSet;
             setCurrentSet(nextSet);
             repRef.current = 1;
-            setCurrentRep(1);
+            setCurrentRep(1); // triggers speech useEffect for rep 1 of new set
             subPhaseRef.current = 'work';
             setRepSubPhase('work');
-            speakRep(1); // voice announces '1' at start of next set
             const pace = stepRef.current.repPace || 3.0;
             timeLeftRef.current = pace;
             setTimeLeft(pace);
           } else {
-            // Silent rest countdown
             setTimeLeft(timeLeftRef.current);
           }
         }
@@ -579,7 +575,13 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
             {/* Glowing start button */}
             <button
               onClick={() => {
-                initSpeechSynthesis(); // unlock speech synthesis from this user gesture
+                // Warm up speech synthesis from this user gesture so it works from async contexts
+                if ('speechSynthesis' in window) {
+                  window.speechSynthesis.cancel();
+                  const warmUp = new SpeechSynthesisUtterance('');
+                  warmUp.volume = 0;
+                  window.speechSynthesis.speak(warmUp);
+                }
                 setPhase('timer');
                 setIsPlaying(true);
               }}
@@ -643,14 +645,21 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
                 {currentStep.stepFormat === 'reps' ? (
                   repSubPhase === 'work' ? (
                     <>
-                      <span className="font-mono text-[72px] md:text-[84px] font-extrabold leading-none tracking-tighter text-[#00f0ff]">
+                      {/* Big pulsing rep number */}
+                      <motion.span
+                        key={currentRep}
+                        initial={{ scale: 1.4, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.25 }}
+                        className="font-mono text-[72px] md:text-[84px] font-extrabold leading-none tracking-tighter text-[#00f0ff]"
+                      >
                         {currentRep}
-                      </span>
+                      </motion.span>
                       <span className="text-[10px] tracking-[0.2em] text-outline font-mono uppercase mt-1 font-semibold">
-                        Rep {currentRep} of {currentStep.reps || 12}
+                        of {currentStep.reps || 12} reps
                       </span>
                       <span className="text-[11px] text-[#dae2fd] font-sans mt-2 font-bold px-2 py-0.5 rounded bg-white/5 border border-white/10">
-                        Set {currentSet} of {currentStep.sets || 1}
+                        Set {currentSet} / {currentStep.sets || 1}
                       </span>
                     </>
                   ) : (
