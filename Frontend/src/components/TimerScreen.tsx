@@ -12,11 +12,12 @@ interface TimerScreenProps {
 }
 
 // Speech helper for verbal repetitions counting
-const speakNumber = (num: number) => {
+const speakRep = (num: number) => {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(String(num));
-    utterance.rate = 1.15; // slightly sped up for precise counting
+    utterance.rate = 1.0;  // natural, clear pace
+    utterance.pitch = 1.0;
     window.speechSynthesis.speak(utterance);
   }
 };
@@ -124,6 +125,25 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
     }
   }, [currentStepIdx, routine]);
 
+  // Speak "1" immediately when a reps step starts playing
+  const prevIsPlayingRef = useRef(false);
+  const prevStepIdxRef = useRef(-1);
+  useEffect(() => {
+    const justStarted =
+      isPlaying &&
+      currentStep?.stepFormat === 'reps' &&
+      phase === 'timer' &&
+      repSubPhase === 'work' &&
+      currentRep === 0 &&
+      (!prevIsPlayingRef.current || prevStepIdxRef.current !== currentStepIdx);
+    if (justStarted) {
+      setCurrentRep(1);
+      speakRep(1);
+    }
+    prevIsPlayingRef.current = isPlaying;
+    prevStepIdxRef.current = currentStepIdx;
+  }, [isPlaying, currentStepIdx, phase]);
+
   // Handle Audio Loops playback logic
   useEffect(() => {
     if (currentStep && currentStep.stepFormat === 'audio-loop' && phase === 'timer') {
@@ -178,8 +198,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
 
                 if (nextRep <= maxReps) {
                   setCurrentRep(nextRep);
-                  playPacerBeep(800, 0.08);
-                  speakNumber(nextRep);
+                  speakRep(nextRep);           // voice only — no beep
                   const pace = currentStep.repPace || 3.0;
                   return pace;
                 } else {
@@ -188,7 +207,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
                   if (currentSet < maxSets) {
                     setRepSubPhase('rest');
                     playCueSound(currentStep);
-                    const restTime = currentStep.duration || 30; // set rest in duration
+                    const restTime = currentStep.duration || 30;
                     return restTime;
                   } else {
                     // All sets completed
@@ -199,26 +218,20 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
                   }
                 }
               } else {
-                if (routine.tickingSoundEnabled !== false) {
-                  chimeSynthesizer.playTick();
-                }
+                // Silence between reps — no tick for reps mode
                 return prev - 1;
               }
             } else {
-              // Resting between sets
+              // Resting between sets — count down silently
               if (prev <= 1) {
                 setCurrentSet((s) => s + 1);
                 setCurrentRep(1);
                 setRepSubPhase('work');
-                playPacerBeep(1000, 0.15); // distinct set transition chime
-                speakNumber(1);
+                speakRep(1);                  // voice announces rep 1 of next set
                 const pace = currentStep.repPace || 3.0;
                 return pace;
               } else {
-                if (routine.tickingSoundEnabled !== false) {
-                  chimeSynthesizer.playTick();
-                }
-                return prev - 1;
+                return prev - 1;              // silent rest countdown
               }
             }
           });
