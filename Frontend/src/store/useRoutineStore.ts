@@ -597,6 +597,12 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
     const updated = routines.filter((r) => r.id !== id);
     set({ routines: updated });
 
+    console.log('[handleDeleteRoutine] Deleting child steps and checklist items for routine:', id);
+    // Delete child rows first to avoid foreign key constraint violations in Supabase
+    await supabase.from('routine_steps').delete().eq('routine_id', id);
+    await supabase.from('routine_checklist_items').delete().eq('routine_id', id);
+
+    console.log('[handleDeleteRoutine] Deleting routine row for:', id);
     const { error } = await supabase.from('routines').delete().eq('id', id);
     if (error) {
       console.error('[handleDeleteRoutine] Supabase delete routine failed:', error.message, error.details);

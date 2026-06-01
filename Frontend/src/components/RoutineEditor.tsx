@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { Trash2, Plus, GripVertical, Save, ArrowLeft, Check, Play, ChevronUp, ChevronDown, Mic, Square, Pause } from 'lucide-react';
+import { Trash2, Plus, GripVertical, Save, ArrowLeft, Check, Play, ChevronUp, ChevronDown, Mic, Square, Pause, Sparkles } from 'lucide-react';
 import { Routine, PracticeStep, CueType, StepType, ChecklistItem } from '../types';
 import { DEFAULT_CHECKLIST } from '../data/defaultRoutines';
 import { generateUniqueId } from '../utils/uniqueId';
+import { processAudioBuffer, trimAudioBuffer } from '../utils/audioFilter';
 
 interface RoutineEditorProps {
   routine: Routine | null; // null means "Create New"
@@ -434,84 +435,84 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
                     </div>
 
                     {/* V2 Format Details and Recording block row */}
-                    <div className="flex flex-wrap items-center gap-3 pt-2.5 border-t border-outline-variant/10">
-                      {/* Format Selector */}
-                      <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
-                        <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
-                          Format
-                        </span>
-                        <select
-                          value={step.stepFormat || 'duration'}
-                          onChange={(e) => {
-                            const fmt = e.target.value as any;
-                            handleUpdateStep(step.id, { 
-                              stepFormat: fmt,
-                              sets: step.sets || 1,
-                              reps: step.reps || (fmt === 'audio-loop' ? 21 : 12),
-                              repPace: step.repPace || 3.0
-                            });
-                          }}
-                          className="bg-transparent text-primary-container font-mono font-bold text-[10px] focus:outline-none cursor-pointer outline-none uppercase"
-                        >
-                          <option value="duration" className="bg-surface-container-high">Time</option>
-                          <option value="reps" className="bg-surface-container-high">Reps</option>
-                          <option value="audio-loop" className="bg-surface-container-high">Audio Loop</option>
-                        </select>
-                      </div>
+                    <div className="space-y-3 pt-2.5 border-t border-outline-variant/10">
+                      <div className="flex flex-wrap items-center gap-3">
+                        {/* Format Selector */}
+                        <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
+                          <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
+                            Format
+                          </span>
+                          <select
+                            value={step.stepFormat || 'duration'}
+                            onChange={(e) => {
+                              const fmt = e.target.value as any;
+                              handleUpdateStep(step.id, { 
+                                stepFormat: fmt,
+                                sets: step.sets || 1,
+                                reps: step.reps || (fmt === 'audio-loop' ? 21 : 12),
+                                repPace: step.repPace || 3.0
+                              });
+                            }}
+                            className="bg-transparent text-primary-container font-mono font-bold text-[10px] focus:outline-none cursor-pointer outline-none uppercase"
+                          >
+                            <option value="duration" className="bg-surface-container-high">Time</option>
+                            <option value="reps" className="bg-surface-container-high">Reps</option>
+                            <option value="audio-loop" className="bg-surface-container-high">Audio Loop</option>
+                          </select>
+                        </div>
 
-                      {/* Reps-specific inputs */}
-                      {step.stepFormat === 'reps' && (
-                        <>
-                          <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
-                            <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
-                              Sets
-                            </span>
-                            <input
-                              type="number"
-                              min="1"
-                              value={step.sets || 1}
-                              onChange={(e) => handleUpdateStep(step.id, { sets: Math.max(1, parseInt(e.target.value) || 1) })}
-                              className="w-8 bg-transparent text-center font-mono font-bold text-xs text-on-surface focus:outline-none outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          </div>
+                        {/* Reps-specific inputs */}
+                        {step.stepFormat === 'reps' && (
+                          <>
+                            <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
+                              <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
+                                Sets
+                              </span>
+                              <input
+                                type="number"
+                                min="1"
+                                value={step.sets || 1}
+                                onChange={(e) => handleUpdateStep(step.id, { sets: Math.max(1, parseInt(e.target.value) || 1) })}
+                                className="w-8 bg-transparent text-center font-mono font-bold text-xs text-on-surface focus:outline-none outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                            </div>
 
-                          <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
-                            <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
-                              Reps/Set
-                            </span>
-                            <input
-                              type="number"
-                              min="1"
-                              value={step.reps || 12}
-                              onChange={(e) => handleUpdateStep(step.id, { reps: Math.max(1, parseInt(e.target.value) || 1) })}
-                              className="w-10 bg-transparent text-center font-mono font-bold text-xs text-on-surface focus:outline-none outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          </div>
+                            <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
+                              <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
+                                Reps/Set
+                              </span>
+                              <input
+                                type="number"
+                                min="1"
+                                value={step.reps || 12}
+                                onChange={(e) => handleUpdateStep(step.id, { reps: Math.max(1, parseInt(e.target.value) || 1) })}
+                                className="w-10 bg-transparent text-center font-mono font-bold text-xs text-on-surface focus:outline-none outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                            </div>
 
-                          <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
-                            <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
-                              Rep Pace
-                            </span>
-                            <select
-                              value={step.repPace || 3.0}
-                              onChange={(e) => handleUpdateStep(step.id, { repPace: parseFloat(e.target.value) })}
-                              className="bg-transparent text-on-surface font-mono font-bold text-[10px] focus:outline-none cursor-pointer outline-none"
-                            >
-                              <option value="1" className="bg-surface-container-high">1.0s / rep</option>
-                              <option value="1.5" className="bg-surface-container-high">1.5s / rep</option>
-                              <option value="2" className="bg-surface-container-high">2.0s / rep</option>
-                              <option value="2.5" className="bg-surface-container-high">2.5s / rep</option>
-                              <option value="3" className="bg-surface-container-high">3.0s / rep</option>
-                              <option value="4" className="bg-surface-container-high">4.0s / rep</option>
-                              <option value="5" className="bg-surface-container-high">5.0s / rep</option>
-                            </select>
-                          </div>
-                        </>
-                      )}
+                            <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
+                              <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
+                                Rep Pace
+                              </span>
+                              <select
+                                value={step.repPace || 3.0}
+                                onChange={(e) => handleUpdateStep(step.id, { repPace: parseFloat(e.target.value) })}
+                                className="bg-transparent text-on-surface font-mono font-bold text-[10px] focus:outline-none cursor-pointer outline-none"
+                              >
+                                <option value="1" className="bg-surface-container-high">1.0s / rep</option>
+                                <option value="1.5" className="bg-surface-container-high">1.5s / rep</option>
+                                <option value="2" className="bg-surface-container-high">2.0s / rep</option>
+                                <option value="2.5" className="bg-surface-container-high">2.5s / rep</option>
+                                <option value="3" className="bg-surface-container-high">3.0s / rep</option>
+                                <option value="4" className="bg-surface-container-high">4.0s / rep</option>
+                                <option value="5" className="bg-surface-container-high">5.0s / rep</option>
+                              </select>
+                            </div>
+                          </>
+                        )}
 
-                      {/* Audio loop-specific inputs */}
-                      {step.stepFormat === 'audio-loop' && (
-                        <>
+                        {/* Audio loop-specific inputs */}
+                        {step.stepFormat === 'audio-loop' && (
                           <div className="bg-surface-container border border-outline-variant/35 rounded-lg px-2.5 py-1 flex flex-col items-center">
                             <span className="text-[8px] font-mono uppercase text-outline tracking-wider block font-semibold mb-0.5">
                               Loops
@@ -524,12 +525,18 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
                               className="w-10 bg-transparent text-center font-mono font-bold text-xs text-on-surface focus:outline-none outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </div>
+                        )}
+                      </div>
 
+                      {/* Audio loop recorder block */}
+                      {step.stepFormat === 'audio-loop' && (
+                        <div className="pt-2">
                           <AudioRecorder
+                            key={step.id}
                             audioData={step.audioData}
                             onSaveAudio={(base64) => handleUpdateStep(step.id, { audioData: base64 })}
                           />
-                        </>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -680,70 +687,158 @@ export default function RoutineEditor({ routine, onSave, onCancel }: RoutineEdit
 }
 
 interface AudioRecorderProps {
+  key?: string;
   audioData?: string;
   onSaveAudio: (base64: string) => void;
 }
 
-function AudioRecorder({ audioData, onSaveAudio }: AudioRecorderProps) {
+function AudioRecorderComponent({ audioData, onSaveAudio }: AudioRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [noiseRemovalEnabled, setNoiseRemovalEnabled] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const [originalBuffer, setOriginalBuffer] = useState<AudioBuffer | null>(null);
+  const [trimStart, setTrimStart] = useState(0);
+  const [trimEnd, setTrimEnd] = useState(0);
+  const [maxDuration, setMaxDuration] = useState(0);
   
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const rawBufferRef = useRef<AudioBuffer | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const processorNodeRef = useRef<ScriptProcessorNode | null>(null);
+  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const audioChunksRef = useRef<Float32Array[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  const decodeBase64ToAudioBuffer = async (base64: string): Promise<AudioBuffer | null> => {
+    try {
+      const response = await fetch(base64);
+      const arrayBuffer = await response.arrayBuffer();
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return null;
+      const ctx = new AudioContextClass();
+      const buffer = await new Promise<AudioBuffer>((resolve, reject) => {
+        ctx.decodeAudioData(arrayBuffer, resolve, reject);
+      });
+      ctx.close();
+      return buffer;
+    } catch (err) {
+      console.error('Failed to decode loaded base64 audio:', err);
+      return null;
+    }
+  };
+
   useEffect(() => {
     if (audioData) {
       setAudioUrl(audioData);
+      // ONLY decode if we do not already have the raw buffer in memory (i.e. loading from database)
+      if (!rawBufferRef.current) {
+        decodeBase64ToAudioBuffer(audioData).then((buffer) => {
+          if (buffer) {
+            rawBufferRef.current = buffer;
+            setOriginalBuffer(buffer);
+            setMaxDuration(buffer.duration);
+            setTrimStart(0);
+            setTrimEnd(buffer.duration);
+          }
+        });
+      }
     } else {
       setAudioUrl(null);
+      setOriginalBuffer(null);
+      rawBufferRef.current = null;
+      setMaxDuration(0);
+      setTrimStart(0);
+      setTrimEnd(0);
     }
   }, [audioData]);
 
   useEffect(() => {
     return () => {
+      cleanupAudioContext();
       if (timerRef.current) clearInterval(timerRef.current);
       if (audioRef.current) {
         audioRef.current.pause();
       }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
     };
   }, []);
 
+  const cleanupAudioContext = () => {
+    if (processorNodeRef.current) {
+      processorNodeRef.current.disconnect();
+      processorNodeRef.current.onaudioprocess = null;
+      processorNodeRef.current = null;
+    }
+    if (sourceNodeRef.current) {
+      sourceNodeRef.current.disconnect();
+      sourceNodeRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      if (audioCtxRef.current.state !== 'closed') {
+        audioCtxRef.current.close().catch(e => console.error('Error closing AudioContext:', e));
+      }
+      audioCtxRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+  };
+
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      cleanupAudioContext();
+      rawBufferRef.current = null;
+      setOriginalBuffer(null);
+      audioChunksRef.current = [];
+
+      const constraints: MediaStreamConstraints = {
+        audio: noiseRemovalEnabled ? {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        } : true
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      
-      const chunks: Blob[] = [];
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
+
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) {
+        alert('Web Audio API is not supported in this browser.');
+        return;
+      }
+
+      const audioCtx = new AudioContextClass();
+      audioCtxRef.current = audioCtx;
+
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      sourceNodeRef.current = source;
+
+      // Create a ScriptProcessorNode to capture raw mono audio (buffer size 4096)
+      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+      processorNodeRef.current = processor;
+
+      processor.onaudioprocess = (e) => {
+        const inputBuffer = e.inputBuffer.getChannelData(0);
+        // Copy the samples
+        audioChunksRef.current.push(new Float32Array(inputBuffer));
       };
-      
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = () => {
-          const base64data = reader.result as string;
-          onSaveAudio(base64data);
-          setAudioUrl(base64data);
-        };
-        
-        stream.getTracks().forEach((track) => track.stop());
-      };
-      
+
+      // Connect source to processor, and processor to destination so it runs
+      source.connect(processor);
+      processor.connect(audioCtx.destination);
+
       setRecordingTime(0);
       setIsRecording(true);
-      mediaRecorder.start();
-      
+
       timerRef.current = setInterval(() => {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
@@ -753,11 +848,110 @@ function AudioRecorder({ audioData, onSaveAudio }: AudioRecorderProps) {
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (timerRef.current) clearInterval(timerRef.current);
+  const stopRecording = async () => {
+    if (!isRecording) return;
+    
+    setIsRecording(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+    setIsProcessing(true);
+
+    try {
+      // Accumulate audio chunks in local variables before cleanup
+      const chunks = audioChunksRef.current;
+      const sampleRate = audioCtxRef.current?.sampleRate || 44100;
+      
+      // Stop the mic tracks and release resources
+      cleanupAudioContext();
+
+      if (chunks.length === 0) {
+        throw new Error('No audio samples captured.');
+      }
+
+      // Concatenate float chunks
+      let totalLength = 0;
+      for (const chunk of chunks) {
+        totalLength += chunk.length;
+      }
+      const mergedSamples = new Float32Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        mergedSamples.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      // Create a clean AudioBuffer from these samples
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const offlineCtx = new AudioContextClass();
+      const audioBuffer = offlineCtx.createBuffer(1, totalLength, sampleRate);
+      audioBuffer.copyToChannel(mergedSamples, 0);
+      
+      rawBufferRef.current = audioBuffer;
+      setOriginalBuffer(audioBuffer);
+      setMaxDuration(audioBuffer.duration);
+      setTrimStart(0);
+      setTrimEnd(audioBuffer.duration);
+
+      // Run through DSP filters and convert to WAV Blob
+      const finalBlob = await processAudioBuffer(audioBuffer, noiseRemovalEnabled);
+
+      const reader = new FileReader();
+      reader.readAsDataURL(finalBlob);
+      reader.onloadend = () => {
+        const base64data = reader.result as string;
+        onSaveAudio(base64data);
+        setAudioUrl(base64data);
+        setIsProcessing(false);
+      };
+    } catch (err) {
+      console.error('Processing failed:', err);
+      setIsProcessing(false);
+      alert('Failed to process and clean audio.');
+    }
+  };
+
+  const applyTrimAndProcess = async (start: number, end: number) => {
+    if (!rawBufferRef.current) return;
+    setIsProcessing(true);
+    try {
+      const trimmed = trimAudioBuffer(rawBufferRef.current, start, end);
+      const processedBlob = await processAudioBuffer(trimmed, noiseRemovalEnabled);
+      
+      const reader = new FileReader();
+      reader.readAsDataURL(processedBlob);
+      reader.onloadend = () => {
+        const base64data = reader.result as string;
+        onSaveAudio(base64data);
+        setAudioUrl(base64data);
+        setIsProcessing(false);
+      };
+    } catch (err) {
+      console.error('Failed to apply trim:', err);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleToggleNoiseClean = async () => {
+    const nextVal = !noiseRemovalEnabled;
+    setNoiseRemovalEnabled(nextVal);
+    
+    if (rawBufferRef.current) {
+      setIsProcessing(true);
+      try {
+        const trimmed = trimAudioBuffer(rawBufferRef.current, trimStart, trimEnd);
+        const processedBlob = await processAudioBuffer(trimmed, nextVal);
+        
+        const reader = new FileReader();
+        reader.readAsDataURL(processedBlob);
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          onSaveAudio(base64data);
+          setAudioUrl(base64data);
+          setIsProcessing(false);
+        };
+      } catch (err) {
+        console.error('Failed to apply noise clean toggle:', err);
+        setIsProcessing(false);
+      }
     }
   };
 
@@ -781,49 +975,356 @@ function AudioRecorder({ audioData, onSaveAudio }: AudioRecorderProps) {
   };
 
   return (
-    <div className="flex items-center gap-3 bg-surface-container-high/40 border border-outline-variant/20 rounded-xl px-4 py-2 text-xs font-mono w-full sm:w-auto">
-      {isRecording ? (
-        <div className="flex items-center gap-3 text-red-400">
-          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-          <span>Rec ({recordingTime}s)</span>
+    <div className="flex flex-col gap-4 bg-surface-container/30 backdrop-blur-md border border-outline-variant/40 rounded-2xl p-5 text-xs font-mono w-full max-w-xl shadow-lg relative overflow-hidden transition-all duration-300 hover:shadow-cyan-500/5 hover:border-cyan-500/20">
+      {/* Background Subtle Gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/5 to-transparent pointer-events-none" />
+
+      {/* Action and controls row */}
+      <div className="flex items-center justify-between gap-4 flex-wrap min-h-[38px] z-10 relative">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Record Button */}
           <button
             type="button"
-            onClick={stopRecording}
-            className="p-1 bg-red-500/15 border border-red-500/30 hover:bg-red-500/30 text-red-400 rounded-lg cursor-pointer transition-colors"
+            disabled={isProcessing}
+            onClick={isRecording ? stopRecording : startRecording}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              isRecording
+                ? 'bg-red-500/10 border-red-500/40 text-red-400 hover:bg-red-500/20 shadow-[0_0_12px_rgba(239,68,68,0.2)] animate-pulse'
+                : 'bg-cyan-500/5 border-cyan-500/25 text-[#00f0ff] hover:bg-cyan-500/15 hover:border-cyan-400 hover:shadow-[0_0_12px_rgba(0,240,255,0.15)]'
+            }`}
           >
-            <Square className="w-3.5 h-3.5 fill-current" />
+            {isRecording ? (
+              <>
+                <Square className="w-3.5 h-3.5 fill-current" />
+                <span>Stop ({recordingTime}s)</span>
+              </>
+            ) : (
+              <>
+                <Mic className="w-3.5 h-3.5" />
+                <span>Record Mantra</span>
+              </>
+            )}
           </button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={startRecording}
-            className="flex items-center gap-1 px-2.5 py-1 bg-primary-container/10 border border-primary-container/20 hover:border-[#00f0ff] text-[#00f0ff] rounded-lg cursor-pointer transition-colors"
-          >
-            <Mic className="w-3.5 h-3.5" />
-            <span>Record Mantra</span>
-          </button>
-          
-          {audioUrl && (
-            <div className="flex items-center gap-2 border-l border-outline-variant/30 pl-2">
-              <button
-                type="button"
-                onClick={playPreview}
-                className="flex items-center gap-1 px-2.5 py-1 bg-surface-container border border-outline-variant/40 hover:border-outline-variant text-on-surface rounded-lg cursor-pointer transition-colors"
-              >
-                {isPlaying ? (
-                  <Pause className="w-3 h-3 fill-current" />
-                ) : (
-                  <Play className="w-3 h-3 fill-current" />
-                )}
-                <span>{isPlaying ? 'Pause' : 'Play'}</span>
-              </button>
-              <span className="text-[10px] text-on-surface-variant font-sans">Recorded</span>
+
+          {/* Play/Pause Button */}
+          {audioUrl && !isRecording && (
+            <button
+              type="button"
+              disabled={isProcessing}
+              onClick={playPreview}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                isPlaying
+                  ? 'bg-cyan-500/10 border-cyan-500/40 text-[#00f0ff] hover:bg-cyan-500/20 shadow-[0_0_12px_rgba(0,240,255,0.15)]'
+                  : 'bg-surface-container border-outline-variant/35 text-on-surface hover:border-outline hover:bg-surface-container-high'
+              }`}
+            >
+              {isPlaying ? (
+                <>
+                  <Pause className="w-3.5 h-3.5 fill-current" />
+                  <span>Pause</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>Play</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Bouncing audio visualizer bars */}
+          {isPlaying && (
+            <div className="flex items-end gap-[3px] h-3.5 px-2">
+              <span className="w-[2.5px] bg-[#00f0ff] animate-bounce h-2" style={{ animationDelay: '0.1s', animationDuration: '0.6s' }} />
+              <span className="w-[2.5px] bg-[#00f0ff] animate-bounce h-3.5" style={{ animationDelay: '0.3s', animationDuration: '0.5s' }} />
+              <span className="w-[2.5px] bg-[#00f0ff] animate-bounce h-1.5" style={{ animationDelay: '0.5s', animationDuration: '0.7s' }} />
             </div>
           )}
+
+          {/* Status text */}
+          {audioUrl && !isRecording && !isProcessing && (
+            <span className="text-[10px] text-on-surface-variant/60 font-sans italic select-none">
+              Recorded & Cleaned
+            </span>
+          )}
+        </div>
+
+        {/* Right side controls: Loading spinner & Noise Clean toggle */}
+        <div className="flex items-center gap-3 select-none">
+          {isProcessing && (
+            <div className="flex items-center gap-2 text-cyan-400 text-[11px] font-bold uppercase tracking-wider pr-1 animate-pulse">
+              <svg className="animate-spin h-3.5 w-3.5 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Processing...</span>
+            </div>
+          )}
+
+          {!isRecording && (
+            <button
+              type="button"
+              disabled={isProcessing}
+              onClick={handleToggleNoiseClean}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full border text-[10px] uppercase font-bold tracking-wider transition-all duration-300 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                noiseRemovalEnabled 
+                  ? 'bg-cyan-500/10 border-cyan-500/35 text-cyan-400 hover:bg-cyan-500/20' 
+                  : 'bg-surface-container border-outline-variant/35 text-on-surface-variant hover:text-on-surface hover:border-outline-variant'
+              }`}
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${noiseRemovalEnabled ? 'animate-pulse' : ''}`} />
+              <span>Noise Clean: {noiseRemovalEnabled ? 'ON' : 'OFF'}</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Trimming section with interactive waveform */}
+      {!isRecording && originalBuffer && (
+        <div className="flex flex-col gap-2 border-t border-outline-variant/10 pt-3 mt-1 z-10 relative">
+          <InteractiveWaveTrimmer
+            buffer={originalBuffer}
+            trimStart={trimStart}
+            trimEnd={trimEnd}
+            onChange={(start, end) => {
+              setTrimStart(start);
+              setTrimEnd(end);
+            }}
+            onChangeEnd={(start, end) => {
+              applyTrimAndProcess(start, end);
+            }}
+            isProcessing={isProcessing}
+          />
+        </div>
+      )}
+
+      {/* Silent environment tip */}
+      {!isRecording && (
+        <div className="text-[10px] text-on-surface-variant/80 border-t border-outline-variant/10 pt-3 flex items-start gap-2 select-none z-10 relative">
+          <span className="text-[#00f0ff] mt-0.5">💡</span>
+          <span className="leading-relaxed">
+            <strong className="text-[#dae2fd]">Tip:</strong> For best noise clean results, try to record in a quiet, silent environment.
+          </span>
         </div>
       )}
     </div>
   );
 }
+
+// ----------------------------------------------------
+// Interactive Waveform Trimmer Component
+// ----------------------------------------------------
+interface InteractiveWaveTrimmerProps {
+  buffer: AudioBuffer;
+  trimStart: number;
+  trimEnd: number;
+  onChange: (start: number, end: number) => void;
+  onChangeEnd: (start: number, end: number) => void;
+  isProcessing: boolean;
+}
+
+function InteractiveWaveTrimmer({
+  buffer,
+  trimStart,
+  trimEnd,
+  onChange,
+  onChangeEnd,
+  isProcessing
+}: InteractiveWaveTrimmerProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [activeHandle, setActiveHandle] = useState<'start' | 'end' | null>(null);
+  const duration = buffer.duration;
+
+  // Render canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+
+    const width = rect.width;
+    const height = rect.height;
+    const rawData = buffer.getChannelData(0);
+
+    ctx.clearRect(0, 0, width, height);
+
+    // Number of bars
+    const barCount = 70;
+    const barWidth = 3;
+    const barGap = 2;
+    const totalBarWidth = barWidth + barGap;
+    const startX = (width - (barCount * totalBarWidth - barGap)) / 2;
+
+    const samplesPerBin = Math.floor(rawData.length / barCount);
+    const peaks: number[] = [];
+    let maxPeak = 0.01;
+
+    for (let i = 0; i < barCount; i++) {
+      let sum = 0;
+      const startSample = i * samplesPerBin;
+      const endSample = Math.min(startSample + samplesPerBin, rawData.length);
+      for (let j = startSample; j < endSample; j++) {
+        sum += Math.abs(rawData[j]);
+      }
+      const avg = sum / (endSample - startSample || 1);
+      peaks.push(avg);
+      if (avg > maxPeak) {
+        maxPeak = avg;
+      }
+    }
+
+    const normalizedPeaks = peaks.map(p => p / maxPeak);
+
+    for (let i = 0; i < barCount; i++) {
+      const peak = normalizedPeaks[i];
+      const barHeight = Math.max(3, peak * (height - 16));
+      const x = startX + i * totalBarWidth;
+      const y = (height - barHeight) / 2;
+
+      const barTime = (i / barCount) * duration;
+      const isInside = barTime >= trimStart && barTime <= trimEnd;
+
+      if (isInside) {
+        ctx.fillStyle = '#00f0ff';
+        ctx.shadowColor = 'rgba(0, 240, 255, 0.4)';
+        ctx.shadowBlur = 4;
+      } else {
+        ctx.fillStyle = '#3b494b';
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(x, y, barWidth, barHeight, 1.5) : ctx.rect(x, y, barWidth, barHeight);
+      ctx.fill();
+    }
+  }, [buffer, trimStart, trimEnd]);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isProcessing) return;
+    if (!containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const clickRatio = Math.max(0, Math.min(1, x / rect.width));
+    const clickTime = clickRatio * duration;
+
+    const distToStart = Math.abs(clickTime - trimStart);
+    const distToEnd = Math.abs(clickTime - trimEnd);
+
+    const handle = distToStart < distToEnd ? 'start' : 'end';
+    setActiveHandle(handle);
+    
+    if (handle === 'start') {
+      if (clickTime < trimEnd - 0.2) {
+        onChange(clickTime, trimEnd);
+      }
+    } else {
+      if (clickTime > trimStart + 0.2) {
+        onChange(trimStart, clickTime);
+      }
+    }
+
+    containerRef.current.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!activeHandle || !containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, x / rect.width));
+    const time = ratio * duration;
+
+    if (activeHandle === 'start') {
+      if (time < trimEnd - 0.2) {
+        onChange(time, trimEnd);
+      }
+    } else {
+      if (time > trimStart + 0.2) {
+        onChange(trimStart, time);
+      }
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!activeHandle) return;
+    const handleReleased = activeHandle;
+    setActiveHandle(null);
+    if (containerRef.current) {
+      containerRef.current.releasePointerCapture(e.pointerId);
+    }
+    onChangeEnd(trimStart, trimEnd);
+  };
+
+  const startPercent = (trimStart / duration) * 100;
+  const endPercent = (trimEnd / duration) * 100;
+
+  return (
+    <div className="flex flex-col gap-1.5 w-full select-none">
+      <div className="flex justify-between items-center text-[10px] text-outline font-bold uppercase tracking-wider mb-1 px-1">
+        <span>Drag Handles to Trim Loop</span>
+        <span className="text-[#00f0ff] font-sans font-bold">
+          Range: {trimStart.toFixed(1)}s - {trimEnd.toFixed(1)}s (Len: {(trimEnd - trimStart).toFixed(1)}s)
+        </span>
+      </div>
+
+      <div
+        ref={containerRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        className={`relative h-20 bg-surface-container-lowest/80 border border-outline-variant/35 rounded-xl overflow-hidden cursor-ew-resize touch-none transition-opacity ${
+          isProcessing ? 'opacity-50 pointer-events-none' : ''
+        }`}
+      >
+        <div className="absolute inset-0 opacity-5 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:10px_10px] pointer-events-none" />
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none p-2" />
+
+        <div
+          className="absolute inset-y-0 left-0 bg-[#060e20]/65 border-r border-[#00f0ff]/10 pointer-events-none"
+          style={{ width: `${startPercent}%` }}
+        />
+
+        <div
+          className="absolute inset-y-0 right-0 bg-[#060e20]/65 border-l border-[#00f0ff]/10 pointer-events-none"
+          style={{ left: `${endPercent}%` }}
+        />
+
+        {/* Start Handle */}
+        <div
+          className="absolute inset-y-0 w-[2px] bg-[#00f0ff] shadow-[0_0_8px_#00f0ff] z-20 pointer-events-none"
+          style={{ left: `${startPercent}%` }}
+        >
+          <div className="absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-8 rounded bg-[#00f0ff] border border-[#0b1326] flex flex-col justify-center items-center gap-[2.5px] shadow-lg pointer-events-none">
+            <span className="w-[1px] h-3 bg-[#0b1326]/60" />
+            <span className="w-[1px] h-3 bg-[#0b1326]/60" />
+          </div>
+        </div>
+
+        {/* End Handle */}
+        <div
+          className="absolute inset-y-0 w-[2px] bg-[#00f0ff] shadow-[0_0_8px_#00f0ff] z-20 pointer-events-none"
+          style={{ left: `${endPercent}%` }}
+        >
+          <div className="absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-8 rounded bg-[#00f0ff] border border-[#0b1326] flex flex-col justify-center items-center gap-[2.5px] shadow-lg pointer-events-none">
+            <span className="w-[1px] h-3 bg-[#0b1326]/60" />
+            <span className="w-[1px] h-3 bg-[#0b1326]/60" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const AudioRecorder = React.memo(
+  AudioRecorderComponent,
+  (prevProps, nextProps) => prevProps.audioData === nextProps.audioData
+);
