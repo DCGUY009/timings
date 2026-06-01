@@ -1288,36 +1288,20 @@ function InteractiveWaveTrimmer({
         <div className="absolute inset-0 opacity-5 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:10px_10px] pointer-events-none" />
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none p-2" />
 
-        <div
-          className="absolute inset-y-0 left-0 bg-[#060e20]/65 border-r border-[#00f0ff]/10 pointer-events-none"
-          style={{ width: `${startPercent}%` }}
-        />
-
-        <div
-          className="absolute inset-y-0 right-0 bg-[#060e20]/65 border-l border-[#00f0ff]/10 pointer-events-none"
-          style={{ left: `${endPercent}%` }}
-        />
-
-        {/* Start Handle */}
+        {/* Start Handle Line and Knob */}
         <div
           className="absolute inset-y-0 w-[2px] bg-[#00f0ff] shadow-[0_0_8px_#00f0ff] z-20 pointer-events-none"
           style={{ left: `${startPercent}%` }}
         >
-          <div className="absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-8 rounded bg-[#00f0ff] border border-[#0b1326] flex flex-col justify-center items-center gap-[2.5px] shadow-lg pointer-events-none">
-            <span className="w-[1px] h-3 bg-[#0b1326]/60" />
-            <span className="w-[1px] h-3 bg-[#0b1326]/60" />
-          </div>
+          <div className="absolute top-1/2 -translate-y-1/2 -left-[5px] w-3 h-3 rounded-full bg-[#00f0ff] border border-[#0b1326] shadow-[0_0_8px_rgba(0,240,255,0.6)] pointer-events-none" />
         </div>
 
-        {/* End Handle */}
+        {/* End Handle Line and Knob */}
         <div
           className="absolute inset-y-0 w-[2px] bg-[#00f0ff] shadow-[0_0_8px_#00f0ff] z-20 pointer-events-none"
           style={{ left: `${endPercent}%` }}
         >
-          <div className="absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-8 rounded bg-[#00f0ff] border border-[#0b1326] flex flex-col justify-center items-center gap-[2.5px] shadow-lg pointer-events-none">
-            <span className="w-[1px] h-3 bg-[#0b1326]/60" />
-            <span className="w-[1px] h-3 bg-[#0b1326]/60" />
-          </div>
+          <div className="absolute top-1/2 -translate-y-1/2 -left-[5px] w-3 h-3 rounded-full bg-[#00f0ff] border border-[#0b1326] shadow-[0_0_8px_rgba(0,240,255,0.6)] pointer-events-none" />
         </div>
       </div>
     </div>

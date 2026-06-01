@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Plus, Play, Edit2, Trash2, Library } from 'lucide-react';
 import { Routine } from '../types';
+import ConfirmationModal from './ConfirmationModal';
 
 interface RoutinesDashboardProps {
   routines: Routine[];
@@ -20,6 +21,7 @@ export default function RoutinesDashboard({
 }: RoutinesDashboardProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('All');
+  const [routineToDelete, setRoutineToDelete] = useState<string | null>(null);
 
   const categories = ['All', 'Focus', 'Workout', 'Morning', 'Flexibility'];
 
@@ -144,7 +146,7 @@ export default function RoutinesDashboard({
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); onDeleteRoutine(routine.id); }}
+                        onClick={(e) => { e.stopPropagation(); setRoutineToDelete(routine.id); }}
                         className="p-1.5 text-on-surface-variant hover:text-error rounded-lg transition-colors cursor-pointer"
                         title="Delete routine"
                       >
@@ -227,6 +229,22 @@ export default function RoutinesDashboard({
           </button>
         </div>
       )}
+
+      {/* Confirmation Modal for Routine Deletion */}
+      <ConfirmationModal
+        isOpen={routineToDelete !== null}
+        onClose={() => setRoutineToDelete(null)}
+        onConfirm={() => {
+          if (routineToDelete) {
+            onDeleteRoutine(routineToDelete);
+          }
+        }}
+        title="Delete Routine"
+        message="Are you sure you want to permanently delete this routine? This action will delete the routine and all its configuration."
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </motion.div>
   );
 }

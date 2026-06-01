@@ -4,6 +4,7 @@ import { X, Play, Pause, RotateCcw, SkipForward, Volume2, Flame, Sparkles, Check
 import { Routine, PracticeStep } from '../types';
 import { chimeSynthesizer } from '../utils/AudioSynthesizer';
 import { useRoutineStore } from '../store/useRoutineStore';
+import ConfirmationModal from './ConfirmationModal';
 
 interface TimerScreenProps {
   routine: Routine;
@@ -46,6 +47,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
   const [timeLeft, setTimeLeft] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
 
   // v2 Reps-based and Audio Loop-based execution state
   const [currentSet, setCurrentSet] = useState(1);
@@ -347,7 +349,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
     if (phase === 'setup') {
       onClose(false, 0);
     } else {
-      handleFinishEarly();
+      setShowExitModal(true);
     }
   };
 
@@ -700,6 +702,20 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
           </span>
         </div>
       </footer>
+
+      {/* Confirmation Modal for Session Exit */}
+      <ConfirmationModal
+        isOpen={showExitModal}
+        onClose={() => setShowExitModal(false)}
+        onConfirm={() => {
+          onClose(false, 0); // Exits without logging/history
+        }}
+        title="End Practice Session?"
+        message="Are you sure you want to end this session early? Your progress for this session will not be saved or recorded in history."
+        confirmText="End Session"
+        cancelText="Resume"
+        type="warning"
+      />
     </motion.div>
   );
 }
