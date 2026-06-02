@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../utils/supabaseClient';
 import { Routine, SessionHistoryItem, ChecklistItem, User } from '../types';
-import { DEFAULT_ROUTINES, DEFAULT_CHECKLIST, DEFAULT_HISTORY } from '../data/defaultRoutines';
+import { DEFAULT_ROUTINES, DEFAULT_CHECKLIST } from '../data/defaultRoutines';
 
 // Helper to calculate daily consecutive practice streak from history items
 const calculateStreak = (history: SessionHistoryItem[]): number => {
@@ -61,13 +61,7 @@ const calculateStreak = (history: SessionHistoryItem[]): number => {
   return streak;
 };
 
-// Helper to generate dynamic timestamps relative to today for seeding demo data
-const getRelativeTimestamp = (daysAgo: number, timeStr: string): string => {
-  const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  const datePart = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  return `${datePart} • ${timeStr}`;
-};
+
 
 interface RoutineState {
   // State
@@ -365,40 +359,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
           }
         }
 
-        // Seed default history
-        if (!dbHistory || dbHistory.length === 0) {
-          try {
-            const times = ['09:00 AM', '08:30 AM', '02:15 PM', '08:00 PM'];
-            const seededHistory = DEFAULT_HISTORY.map((item, idx) => ({
-              id: `${item.id}-${userId}`,
-              user_id: userId,
-              routine_name: item.routineName,
-              timestamp: getRelativeTimestamp(idx, times[idx] || '09:00 AM'),
-              duration_minutes: item.durationMinutes,
-              completion_rate: item.completionRate
-            }));
 
-            await supabase.from('session_history').insert(seededHistory);
-            
-            // Calculate streak dynamically from seeded history
-            const mappedHistoryItems: SessionHistoryItem[] = seededHistory.map((item) => ({
-              id: item.id,
-              routineName: item.routine_name,
-              timestamp: item.timestamp,
-              durationMinutes: item.duration_minutes,
-              completionRate: item.completion_rate
-            }));
-            const seededStreak = calculateStreak(mappedHistoryItems);
-
-            await supabase
-              .from('profiles')
-              .update({ streak_days: seededStreak })
-              .eq('id', userId);
-            set({ streakDays: seededStreak });
-          } catch (seedErr) {
-            console.error('[fetchData] Failed to seed session history:', seedErr);
-          }
-        }
 
         // Re-run fetchData to fetch the newly seeded items from DB
         return get().fetchData(userId);

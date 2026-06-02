@@ -1,18 +1,16 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Award, Zap, Clock, Calendar, Check, Trash2, RotateCcw, Sparkles } from 'lucide-react';
+import { Award, Zap, Clock, Calendar, Check, Trash2 } from 'lucide-react';
 import { SessionHistoryItem } from '../types';
 
 interface HistoryDashboardProps {
   history: SessionHistoryItem[];
   onClearHistory: () => void;
-  onAddSimulatedHistory: (item: SessionHistoryItem) => void;
 }
 
 export default function HistoryDashboard({
   history,
   onClearHistory,
-  onAddSimulatedHistory,
 }: HistoryDashboardProps) {
   const [hoveredBar, setHoveredBar] = useState<number | null>(null);
 
@@ -70,23 +68,6 @@ export default function HistoryDashboard({
     ? parseFloat((history.reduce((sum, item) => sum + item.durationMinutes, 0) / 60).toFixed(1))
     : 0;
 
-  const triggerMockAddition = () => {
-    const templates = [
-      { name: 'Kettlebell HIIT', dur: 45, compl: 100 },
-      { name: 'Sunrise Activation', dur: 25, compl: 100 },
-      { name: 'Deep Work Block', dur: 90, compl: 100 },
-      { name: 'Quick Stretching', dur: 15, compl: 80 },
-    ];
-    const picked = templates[Math.floor(Math.random() * templates.length)];
-    const mockItem: SessionHistoryItem = {
-      id: `hist-sim-${Date.now()}`,
-      routineName: picked.name,
-      timestamp: `${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`,
-      durationMinutes: picked.dur,
-      completionRate: picked.compl,
-    };
-    onAddSimulatedHistory(mockItem);
-  };
 
   return (
     <motion.div
@@ -107,13 +88,6 @@ export default function HistoryDashboard({
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={triggerMockAddition}
-            className="inline-flex items-center justify-center gap-1.5 border border-outline-variant/50 hover:border-primary-container px-4 py-2.5 rounded-xl font-mono text-xs text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-primary-container" /> Simulate Log
-          </button>
-          
           <button
             disabled={history.length === 0}
             onClick={onClearHistory}
@@ -299,12 +273,7 @@ export default function HistoryDashboard({
             <div className="flex flex-col items-center justify-center py-16 text-center text-on-surface-variant border-2 border-dashed border-outline-variant/20 rounded-2xl bg-[#131b2e]/10">
               <Zap className="w-10 h-10 text-outline-variant/60 mb-2" />
               <p className="text-sm font-sans font-medium">No sessions logged yet.</p>
-              <button 
-                onClick={triggerMockAddition}
-                className="text-xs font-mono text-primary-container underline mt-1.5 hover:text-white"
-              >
-                Log a simulated practice run now
-              </button>
+              <p className="text-xs font-mono text-on-surface-variant/60 mt-1">Complete a routine to see your history here.</p>
             </div>
           )}
         </div>

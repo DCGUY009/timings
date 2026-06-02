@@ -184,7 +184,6 @@ export default function App() {
           <HistoryDashboard
             history={history}
             onClearHistory={handleClearHistory}
-            onAddSimulatedHistory={handleAddSessionToLog}
           />
         );
       case 'settings':
