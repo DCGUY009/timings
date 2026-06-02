@@ -232,19 +232,6 @@ export default function RoutinesDashboard({
         </AnimatePresence>
       </div>
 
-      {filteredRoutines.length === 0 && routines.filter(r => !DEFAULT_ROUTINES.some(dr => dr.id === r.id)).length > 0 && (
-        <div className="flex flex-col items-center justify-center py-10 text-center text-on-surface-variant">
-          <Library className="w-10 h-10 text-outline/50 mb-3" />
-          <p className="text-sm font-sans font-medium">No matching routines found.</p>
-          <button
-            onClick={() => { setSearchQuery(''); setActiveFilter('All'); }}
-            className="text-xs font-mono text-primary-container underline mt-2 hover:text-white"
-          >
-            Reset filters
-          </button>
-        </div>
-      )}
-
       {/* ─── Preconfigured Example Routines ─── */}
       <div className="mt-14">
         <div className="flex items-center gap-3 mb-6">
