@@ -454,115 +454,172 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
               Prepare your environment for maximum efficiency before commencing <strong>{routine.name}</strong>.
             </p>
 
-            {/* Routine Overview Section */}
-            <div className="bg-surface-container/25 border border-outline-variant/15 rounded-2xl p-4 w-full max-w-md mb-6 font-sans text-xs">
-              <div className="flex justify-between items-center mb-3 pb-2 border-b border-outline-variant/10">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#00f0ff]">
-                  Routine Sequence Overview
-                </span>
-                <span className="font-mono text-outline-variant">
-                  {steps.length} steps • {Math.round(steps.reduce((sum, s) => sum + getStepDuration(s), 0) / 60)} minutes
-                </span>
-              </div>
-              <div className="space-y-1.5 max-h-24 overflow-y-auto pr-1 custom-scrollbar">
-                {steps.map((step, idx) => (
-                  <div key={step.id || idx} className="flex justify-between text-on-surface-variant">
-                    <span className="truncate pr-4">
-                      {idx + 1}. {step.name}
+            {/* Two-Column split workspace (Routine Overview vs Environment Setup Checklist) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full max-w-5xl px-4 mt-6 mb-8">
+              
+              {/* LEFT COLUMN: Routine Overview */}
+              <div className="lg:col-span-6 bg-surface-container/20 border border-outline-variant/15 rounded-2xl p-6 flex flex-col justify-between backdrop-blur-md relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#00f0ff]/30 to-transparent" />
+                
+                <div>
+                  <div className="flex justify-between items-center pb-3 mb-5 border-b border-outline-variant/10">
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#00f0ff] flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" /> Routine Blueprint
                     </span>
-                    <span className="font-mono text-[10px] shrink-0">
-                      {step.stepFormat === 'reps' 
-                        ? `${step.sets || 1}s x ${step.reps || 12}r` 
+                    <span className="text-[11px] font-mono text-outline-variant uppercase font-bold tracking-widest bg-white/5 border border-white/10 px-2 py-0.5 rounded">
+                      {steps.length} Steps
+                    </span>
+                  </div>
+
+                  <h3 className="text-2xl font-bold font-sans tracking-tight text-on-surface mb-2">
+                    {routine.name}
+                  </h3>
+                  <p className="text-xs text-on-surface-variant leading-relaxed font-sans mb-6">
+                    {routine.description || 'Practice sequence optimized for performance and breath-aligned conduction.'}
+                  </p>
+
+                  {/* Steps Timeline Grid */}
+                  <div className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                    {steps.map((step, idx) => {
+                      const isRest = step.type === 'rest';
+                      const formatLabel = step.stepFormat === 'reps' 
+                        ? `${step.sets || 1}s • ${step.reps || 12}r`
                         : step.stepFormat === 'audio-loop'
                           ? `${step.reps || 21} loops`
-                          : formatTime(step.duration)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+                          : formatTime(step.duration);
+                          
+                      return (
+                        <div key={step.id || idx} className="flex gap-3.5 group">
+                          {/* Timeline node line indicator */}
+                          <div className="flex flex-col items-center shrink-0">
+                            <div className={`w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-mono font-bold ${
+                              isRest 
+                                ? 'bg-indigo-950/40 text-indigo-300 border-indigo-500/30' 
+                                : 'bg-[#00f0ff]/10 text-[#00f0ff] border-[#00f0ff]/30'
+                            }`}>
+                              {idx + 1}
+                            </div>
+                            {idx < steps.length - 1 && (
+                              <div className="w-[1.5px] flex-1 bg-outline-variant/15 my-1" />
+                            )}
+                          </div>
 
-            {/* Checklist Card */}
-            <div className="bg-surface-container/40 border border-outline-variant/20 rounded-2xl p-6 w-full max-w-md mb-8 backdrop-blur-md relative overflow-hidden">
-              {/* Optional neon accent light on top */}
-              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#00f0ff]/50 to-transparent" />
-
-              {checklist.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center text-outline-variant mb-4 border border-outline-variant/10">
-                    <ClipboardCheck className="w-8 h-8 text-[#00f0ff]/60" />
+                          {/* Step Content Card */}
+                          <div className="flex-1 min-w-0 bg-surface-container-low/40 border border-outline-variant/10 rounded-xl p-3 flex justify-between items-center group-hover:border-primary-container/20 transition-all">
+                            <div className="min-w-0 pr-3">
+                              <span className="block text-xs font-sans font-semibold text-on-surface truncate">
+                                {step.name}
+                              </span>
+                              <span className="block text-[10px] font-sans text-on-surface-variant truncate mt-0.5">
+                                {step.description || 'Breath alignment and focus.'}
+                              </span>
+                            </div>
+                            <span className={`font-mono text-xs font-bold whitespace-nowrap shrink-0 px-2 py-0.5 rounded ${
+                              isRest ? 'bg-indigo-500/10 text-indigo-300' : 'bg-[#00f0ff]/10 text-[#00f0ff]'
+                            }`}>
+                              {formatLabel}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <h3 className="text-sm font-sans font-bold text-on-surface mb-1">No Environment Checks</h3>
-                  <p className="text-xs text-on-surface-variant max-w-xs font-sans">
-                    No environmental checklist items are configured for this routine. Feel free to start.
-                  </p>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Progress Indicator */}
-                  <div className="flex justify-between items-center text-xs font-mono mb-2">
-                    <span className="text-on-surface-variant">Preparation Progress</span>
-                    <span className="font-bold text-[#00f0ff]">
+
+                <div className="mt-6 pt-4 border-t border-outline-variant/10 flex justify-between items-center text-xs font-mono text-on-surface-variant">
+                  <span>Conductor Estimate</span>
+                  <span className="font-bold text-white text-sm">
+                    {Math.round(steps.reduce((sum, s) => sum + getStepDuration(s), 0) / 60)} Minutes Total
+                  </span>
+                </div>
+              </div>
+
+              {/* RIGHT COLUMN: Environment Setup Checklist */}
+              <div className="lg:col-span-6 bg-surface-container/30 border border-outline-variant/20 rounded-2xl p-6 flex flex-col justify-between backdrop-blur-md relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent" />
+                
+                <div>
+                  <div className="flex justify-between items-center pb-3 mb-5 border-b border-outline-variant/10">
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-primary-container flex items-center gap-1.5">
+                      <ClipboardCheck className="w-3.5 h-3.5" /> Workspace Calibration
+                    </span>
+                    <span className="text-[10px] font-mono text-primary-container font-bold bg-primary-container/10 px-2 py-0.5 border border-primary-container/15 rounded">
                       {checklist.filter((item) => item.checked).length} of {checklist.length} ready
                     </span>
                   </div>
-                  
-                  {/* Progress Bar */}
-                  <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden mb-4 border border-outline-variant/10">
-                    <motion.div
-                      className="h-full bg-gradient-to-r from-[#00f0ff] to-cyan-400"
-                      initial={{ width: 0 }}
-                      animate={{
-                        width: `${(checklist.filter((item) => item.checked).length / checklist.length) * 100}%`
-                      }}
-                      transition={{ duration: 0.3 }}
-                    />
-                  </div>
 
-                  {/* Checklist List */}
-                  <div className="max-h-60 overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
-                    {checklist.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => handleToggleRoutineCheck(routine.id, item.id)}
-                        className="flex items-center gap-3.5 w-full text-left p-3 rounded-xl bg-surface-container-low/55 border border-outline-variant/20 hover:border-[#00f0ff]/30 hover:bg-surface-container transition-all cursor-pointer group"
-                      >
-                        <div
-                          className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
-                            item.checked
-                              ? 'bg-[#00f0ff] border-[#00f0ff] text-black shadow-lg shadow-cyan-500/20'
-                              : 'border-outline-variant group-hover:border-[#00f0ff]/50 text-transparent'
-                          }`}
-                        >
-                          <Check className="w-3.5 h-3.5 stroke-[3]" />
-                        </div>
-                        <span
-                          className={`text-sm font-sans font-medium transition-all ${
-                            item.checked
-                              ? 'text-on-surface/50 line-through'
-                              : 'text-on-surface'
-                          }`}
-                        >
-                          {item.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                  {checklist.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-14 text-center">
+                      <div className="w-14 h-14 rounded-full bg-surface-container-high flex items-center justify-center text-outline-variant mb-4 border border-outline-variant/10">
+                        <ClipboardCheck className="w-7 h-7 text-[#00f0ff]/50" />
+                      </div>
+                      <h4 className="text-sm font-sans font-bold text-on-surface mb-1">No Environment Constraints</h4>
+                      <p className="text-xs text-on-surface-variant max-w-xs font-sans">
+                        You haven't setup any environmental checklist variables for this sequence.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Progress Bar */}
+                      <div className="w-full h-1 bg-surface-container-high rounded-full overflow-hidden border border-outline-variant/10">
+                        <motion.div
+                          className="h-full bg-[#00f0ff]"
+                          initial={{ width: 0 }}
+                          animate={{
+                            width: `${(checklist.filter((item) => item.checked).length / checklist.length) * 100}%`
+                          }}
+                          transition={{ duration: 0.3 }}
+                        />
+                      </div>
+
+                      {/* Checklist List */}
+                      <div className="max-h-80 overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
+                        {checklist.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => handleToggleRoutineCheck(routine.id, item.id)}
+                            className="flex items-center gap-3.5 w-full text-left p-3.5 rounded-xl bg-surface-container-low/40 border border-outline-variant/15 hover:border-[#00f0ff]/30 hover:bg-surface-container transition-all cursor-pointer group"
+                          >
+                            <div
+                              className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-all ${
+                                item.checked
+                                  ? 'bg-[#00f0ff] border-[#00f0ff] text-black shadow-lg shadow-cyan-500/20'
+                                  : 'border-outline-variant group-hover:border-[#00f0ff]/50 text-transparent'
+                              }`}
+                            >
+                              <Check className="w-3 h-3 stroke-[3]" />
+                            </div>
+                            <span
+                              className={`text-sm font-sans font-medium transition-all ${
+                                item.checked
+                                  ? 'text-on-surface/50 line-through'
+                                  : 'text-on-surface'
+                              }`}
+                            >
+                              {item.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Glowing start button */}
-            <button
-              onClick={() => {
-                setPhase('timer');
-                setIsPlaying(true);
-              }}
-              className="bg-[#00f0ff] text-black font-sans font-bold text-sm px-10 py-4 rounded-xl hover:bg-white transition-all active:scale-95 cursor-pointer glow-button shadow-cyan-500/10 flex items-center gap-2 group"
-            >
-              Ready to Begin
-              <Play className="w-4 h-4 fill-current group-hover:translate-x-0.5 transition-transform" />
-            </button>
+                {/* Ready / Play button aligned cleanly in the right workspace panel bottom */}
+                <div className="mt-6 pt-4 border-t border-outline-variant/10 w-full flex justify-end">
+                  <button
+                    onClick={() => {
+                      setPhase('timer');
+                      setIsPlaying(true);
+                    }}
+                    className="bg-[#00f0ff] text-black font-sans font-bold text-sm px-10 py-4 rounded-xl hover:bg-white transition-all active:scale-95 cursor-pointer glow-button shadow-cyan-500/10 flex items-center gap-2 group w-full justify-center lg:w-auto"
+                  >
+                    Ready to Begin
+                    <Play className="w-4 h-4 fill-current group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </motion.main>
         ) : (
           <motion.main
