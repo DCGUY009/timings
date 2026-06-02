@@ -4,6 +4,7 @@ import { X, Play, Pause, RotateCcw, SkipForward, Volume2, Flame, Sparkles, Check
 import { Routine, PracticeStep } from '../types';
 import { chimeSynthesizer } from '../utils/AudioSynthesizer';
 import { useRoutineStore } from '../store/useRoutineStore';
+import { DEFAULT_ROUTINES } from '../data/defaultRoutines';
 import ConfirmationModal from './ConfirmationModal';
 import VoiceConfigureModal from './VoiceConfigureModal';
 
