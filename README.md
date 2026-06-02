@@ -2,6 +2,8 @@
 
 **Timings** is a sleek, open‑source web app that helps users create, organize, and track daily routines.  It combines a modern Vite + React frontend with a type‑safe Supabase backend for authentication and real‑time data sync.
 
+> 🌐 **Live at [timings.online](https://timings.online)** — open it in your browser and start building routines right away.
+
 ---
 
 ## ✨ Features
@@ -14,7 +16,7 @@
 ---
 
 ## 🚀 Getting Started (for end users)
-1. **Visit the live site** – once deployed, open the URL in a browser.
+1. **Visit [timings.online](https://timings.online)** in your browser — no install needed.
 2. **Sign in** using Google or an email/password.
 3. **Create a routine**, add steps, and start the timer.
 4. **Track your progress** on the dashboard to see streaks and history.
