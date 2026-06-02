@@ -11,7 +11,17 @@ interface TimerScreenProps {
   onClose: (completed: boolean, durationMinutes: number) => void;
 }
 
-// Web Audio API precise beep generator (kept for cue sounds)
+// Speech helper for verbal repetitions counting
+const speakNumber = (num: number) => {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(String(num));
+    utterance.rate = 1.15; // slightly sped up for precise counting
+    window.speechSynthesis.speak(utterance);
+  }
+};
+
+// Web Audio API precise beep generator
 const playPacerBeep = (freq = 800, duration = 0.08) => {
   try {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -77,10 +87,13 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
   const getPercentComplete = () => {
     if (!currentStep) return 0;
     if (currentStep.stepFormat === 'reps') {
-      // Show overall rep progress across all sets (fills as reps complete)
-      const maxReps = (currentStep.reps || 12) * (currentStep.sets || 1);
-      const completedReps = ((currentSet - 1) * (currentStep.reps || 12)) + Math.max(0, currentRep - 1);
-      return (completedReps / maxReps) * 100;
+      if (repSubPhase === 'work') {
+        const pace = currentStep.repPace || 3.0;
+        return ((pace - timeLeft) / pace) * 100;
+      } else {
+        const rest = currentStep.duration || 30;
+        return ((rest - timeLeft) / rest) * 100;
+      }
     } else if (currentStep.stepFormat === 'audio-loop') {
       const maxLoops = currentStep.reps || 21;
       return (currentRep / maxLoops) * 100;
@@ -93,57 +106,6 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Best available speech synthesis voice — loaded on mount and on voiceschanged
-  const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
-  useEffect(() => {
-    if (!('speechSynthesis' in window)) return;
-    const loadVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      const preferred = ['Samantha', 'Karen', 'Daniel', 'Google US English', 'Microsoft Aria Online'];
-      for (const name of preferred) {
-        const v = voices.find((v) => v.name.includes(name));
-        if (v) { voiceRef.current = v; return; }
-      }
-      voiceRef.current = voices.find((v) => v.lang.startsWith('en')) || null;
-    };
-    loadVoice();
-    window.speechSynthesis.addEventListener('voiceschanged', loadVoice);
-    return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoice);
-  }, []);
-
-  // Speak the current rep number whenever currentRep changes (React lifecycle — more browser-friendly)
-  const lastSpokenRepRef = useRef(0);
-  useEffect(() => {
-    if (
-      currentStep?.stepFormat === 'reps' &&
-      phase === 'timer' &&
-      isPlaying &&
-      repSubPhase === 'work' &&
-      currentRep > 0 &&
-      currentRep !== lastSpokenRepRef.current
-    ) {
-      lastSpokenRepRef.current = currentRep;
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.resume();
-        const u = new SpeechSynthesisUtterance(String(currentRep));
-        u.rate = 0.9;
-        u.pitch = 1.0;
-        u.volume = 1.0;
-        if (voiceRef.current) u.voice = voiceRef.current;
-        window.speechSynthesis.speak(u);
-      }
-    }
-  }, [currentRep, phase, isPlaying, repSubPhase]);
-
-  // Refs that mirror reps state so the interval callback always reads fresh values
-  const repRef = useRef(0);
-  const setRef = useRef(1);
-  const subPhaseRef = useRef<'work' | 'rest'>('work');
-  const timeLeftRef = useRef(0);
-  const stepRef = useRef(currentStep);
-  stepRef.current = currentStep; // always current
-
   // Initialize step configuration states on transition
   useEffect(() => {
     if (currentStep) {
@@ -152,11 +114,6 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
         setCurrentRep(0);
         setRepSubPhase('work');
         setTimeLeft(currentStep.repPace || 3.0);
-        // sync refs
-        repRef.current = 0;
-        setRef.current = 1;
-        subPhaseRef.current = 'work';
-        timeLeftRef.current = currentStep.repPace || 3.0;
       } else if (currentStep.stepFormat === 'audio-loop') {
         setCurrentRep(1);
         setRepSubPhase('work');
@@ -210,92 +167,87 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
 
   // Handle primary timing countdown and pacer loop
   useEffect(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (isPlaying && (currentStep.stepFormat !== 'audio-loop' || timeLeft > 0)) {
+      if (currentStep.stepFormat === 'reps') {
+        timerRef.current = setInterval(() => {
+          setTimeLeft((prev) => {
+            if (repSubPhase === 'work') {
+              if (prev <= 1) {
+                const nextRep = currentRep + 1;
+                const maxReps = currentStep.reps || 12;
 
-    if (!isPlaying) return;
-    if (currentStep.stepFormat === 'audio-loop') return; // audio-loop handled by its own effect
-
-    if (currentStep.stepFormat === 'reps') {
-      // Set rep to 1 immediately when interval starts
-      if (repRef.current === 0) {
-        repRef.current = 1;
-        setCurrentRep(1); // this triggers the speech useEffect above
-      }
-
-      timerRef.current = setInterval(() => {
-        timeLeftRef.current -= 1;
-
-        if (subPhaseRef.current === 'work') {
-          if (timeLeftRef.current <= 0) {
-            const nextRep = repRef.current + 1;
-            const maxReps = stepRef.current.reps || 12;
-
-            if (nextRep <= maxReps) {
-              // Next rep — state update triggers the speech useEffect
-              repRef.current = nextRep;
-              setCurrentRep(nextRep);
-              const pace = stepRef.current.repPace || 3.0;
-              timeLeftRef.current = pace;
-              setTimeLeft(pace);
-            } else {
-              // All reps done for this set
-              const maxSets = stepRef.current.sets || 1;
-              if (setRef.current < maxSets) {
-                subPhaseRef.current = 'rest';
-                setRepSubPhase('rest');
-                playCueSound(stepRef.current);
-                const restTime = stepRef.current.duration || 30;
-                timeLeftRef.current = restTime;
-                setTimeLeft(restTime);
+                if (nextRep <= maxReps) {
+                  setCurrentRep(nextRep);
+                  playPacerBeep(800, 0.08);
+                  speakNumber(nextRep);
+                  const pace = currentStep.repPace || 3.0;
+                  return pace;
+                } else {
+                  // All reps done for this set
+                  const maxSets = currentStep.sets || 1;
+                  if (currentSet < maxSets) {
+                    setRepSubPhase('rest');
+                    playCueSound(currentStep);
+                    const restTime = currentStep.duration || 30; // set rest in duration
+                    return restTime;
+                  } else {
+                    // All sets completed
+                    clearInterval(timerRef.current!);
+                    playCueSound(currentStep);
+                    handleNextStep();
+                    return 0;
+                  }
+                }
               } else {
-                clearInterval(timerRef.current!);
-                playCueSound(stepRef.current);
-                handleNextStep();
+                if (routine.tickingSoundEnabled !== false) {
+                  chimeSynthesizer.playTick();
+                }
+                return prev - 1;
+              }
+            } else {
+              // Resting between sets
+              if (prev <= 1) {
+                setCurrentSet((s) => s + 1);
+                setCurrentRep(1);
+                setRepSubPhase('work');
+                playPacerBeep(1000, 0.15); // distinct set transition chime
+                speakNumber(1);
+                const pace = currentStep.repPace || 3.0;
+                return pace;
+              } else {
+                if (routine.tickingSoundEnabled !== false) {
+                  chimeSynthesizer.playTick();
+                }
+                return prev - 1;
               }
             }
-          } else {
-            setTimeLeft(timeLeftRef.current);
-          }
-        } else {
-          // Rest between sets
-          if (timeLeftRef.current <= 0) {
-            const nextSet = setRef.current + 1;
-            setRef.current = nextSet;
-            setCurrentSet(nextSet);
-            repRef.current = 1;
-            setCurrentRep(1); // triggers speech useEffect for rep 1 of new set
-            subPhaseRef.current = 'work';
-            setRepSubPhase('work');
-            const pace = stepRef.current.repPace || 3.0;
-            timeLeftRef.current = pace;
-            setTimeLeft(pace);
-          } else {
-            setTimeLeft(timeLeftRef.current);
-          }
-        }
-      }, 1000);
+          });
+        }, 1000);
+      } else {
+        // Standard time-based step
+        timerRef.current = setInterval(() => {
+          setTimeLeft((prev) => {
+            if (prev <= 1) {
+              playCueSound(currentStep);
+              clearInterval(timerRef.current!);
+              handleNextStep();
+              return 0;
+            }
+            if (routine.tickingSoundEnabled !== false) {
+              chimeSynthesizer.playTick();
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
     } else {
-      // Standard time-based step
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            playCueSound(currentStep);
-            clearInterval(timerRef.current!);
-            handleNextStep();
-            return 0;
-          }
-          if (routine.tickingSoundEnabled !== false) {
-            chimeSynthesizer.playTick();
-          }
-          return prev - 1;
-        });
-      }, 1000);
+      if (timerRef.current) clearInterval(timerRef.current);
     }
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPlaying, currentStepIdx, repSubPhase]);
+  }, [isPlaying, timeLeft, currentStepIdx, repSubPhase, currentRep, currentSet]);
 
   // Clean-up on unmount
   useEffect(() => {
@@ -575,13 +527,6 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
             {/* Glowing start button */}
             <button
               onClick={() => {
-                // Warm up speech synthesis from this user gesture so it works from async contexts
-                if ('speechSynthesis' in window) {
-                  window.speechSynthesis.cancel();
-                  const warmUp = new SpeechSynthesisUtterance('');
-                  warmUp.volume = 0;
-                  window.speechSynthesis.speak(warmUp);
-                }
                 setPhase('timer');
                 setIsPlaying(true);
               }}
@@ -645,21 +590,14 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
                 {currentStep.stepFormat === 'reps' ? (
                   repSubPhase === 'work' ? (
                     <>
-                      {/* Big pulsing rep number */}
-                      <motion.span
-                        key={currentRep}
-                        initial={{ scale: 1.4, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ duration: 0.25 }}
-                        className="font-mono text-[72px] md:text-[84px] font-extrabold leading-none tracking-tighter text-[#00f0ff]"
-                      >
+                      <span className="font-mono text-[72px] md:text-[84px] font-extrabold leading-none tracking-tighter text-[#00f0ff]">
                         {currentRep}
-                      </motion.span>
+                      </span>
                       <span className="text-[10px] tracking-[0.2em] text-outline font-mono uppercase mt-1 font-semibold">
-                        of {currentStep.reps || 12} reps
+                        Rep {currentRep} of {currentStep.reps || 12}
                       </span>
                       <span className="text-[11px] text-[#dae2fd] font-sans mt-2 font-bold px-2 py-0.5 rounded bg-white/5 border border-white/10">
-                        Set {currentSet} / {currentStep.sets || 1}
+                        Set {currentSet} of {currentStep.sets || 1}
                       </span>
                     </>
                   ) : (
