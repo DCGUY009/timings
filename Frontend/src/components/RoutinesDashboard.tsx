@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Plus, Play, Edit2, Trash2, Library, Sparkles } from 'lucide-react';
+import { Search, Plus, Play, Edit2, Trash2, Library, Sparkles, Mic } from 'lucide-react';
 import { Routine } from '../types';
 import ConfirmationModal from './ConfirmationModal';
 import { DEFAULT_ROUTINES } from '../data/defaultRoutines';
@@ -11,6 +11,7 @@ interface RoutinesDashboardProps {
   onEditRoutine: (routine: Routine) => void;
   onDeleteRoutine: (id: string) => void;
   onCreateRoutine: () => void;
+  onEditVoice: (routine: Routine) => void;
 }
 
 export default function RoutinesDashboard({
@@ -19,6 +20,7 @@ export default function RoutinesDashboard({
   onEditRoutine,
   onDeleteRoutine,
   onCreateRoutine,
+  onEditVoice,
 }: RoutinesDashboardProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('All');
@@ -153,6 +155,18 @@ export default function RoutinesDashboard({
                     </div>
                     
                     <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0">
+                      {routine.steps.some((s) => s.stepFormat === 'audio-loop') && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditVoice(routine);
+                          }}
+                          className="p-1.5 text-on-surface-variant hover:text-[#00f0ff] rounded-lg transition-colors cursor-pointer"
+                          title="Configure Voice Cues"
+                        >
+                          <Mic className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       <button
                         onClick={(e) => { e.stopPropagation(); onEditRoutine(routine); }}
                         className="p-1.5 text-on-surface-variant hover:text-primary-container rounded-lg transition-colors cursor-pointer"
@@ -315,13 +329,24 @@ export default function RoutinesDashboard({
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => onStartRoutine(routine)}
-                      className="p-3.5 bg-[#eac324]/15 hover:bg-[#eac324]/30 text-[#ffe179] rounded-full transition-all duration-200 cursor-pointer shadow-lg active:scale-90 group-hover:scale-105 border border-[#eac324]/25"
-                      title="Run this preconfigured routine"
-                    >
-                      <Play className="w-4 h-4 fill-current ml-0.5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {routine.steps.some(s => s.stepFormat === 'audio-loop') && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onEditVoice(routine); }}
+                          className="p-3.5 bg-[#00f0ff]/10 hover:bg-[#00f0ff]/20 text-[#00f0ff] rounded-full transition-all duration-200 cursor-pointer shadow-lg active:scale-90 group-hover:scale-105 border border-[#00f0ff]/25"
+                          title="Configure Voice Cues"
+                        >
+                          <Mic className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onStartRoutine(routine)}
+                        className="p-3.5 bg-[#eac324]/15 hover:bg-[#eac324]/30 text-[#ffe179] rounded-full transition-all duration-200 cursor-pointer shadow-lg active:scale-90 group-hover:scale-105 border border-[#eac324]/25"
+                        title="Run this preconfigured routine"
+                      >
+                        <Play className="w-4 h-4 fill-current ml-0.5" />
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
               );

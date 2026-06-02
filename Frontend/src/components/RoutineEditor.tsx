@@ -812,6 +812,20 @@ function AudioRecorderComponent({ audioData, onSaveAudio }: AudioRecorderProps) 
     };
   }, []);
 
+  const handleDeleteAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    setIsPlaying(false);
+    setAudioUrl(null);
+    setOriginalBuffer(null);
+    rawBufferRef.current = null;
+    setMaxDuration(0);
+    setTrimStart(0);
+    setTrimEnd(0);
+    onSaveAudio('', 0);
+  };
+
   const cleanupAudioContext = () => {
     if (processorNodeRef.current) {
       processorNodeRef.current.disconnect();
@@ -1068,6 +1082,19 @@ function AudioRecorderComponent({ audioData, onSaveAudio }: AudioRecorderProps) 
                   <span>Play</span>
                 </>
               )}
+            </button>
+          )}
+
+          {/* Delete Button */}
+          {audioUrl && !isRecording && (
+            <button
+              type="button"
+              disabled={isProcessing}
+              onClick={handleDeleteAudio}
+              className="flex items-center justify-center p-2.5 rounded-full border border-outline-variant/35 text-on-surface-variant hover:text-error hover:bg-error/10 transition-all duration-300 cursor-pointer disabled:opacity-40"
+              title="Delete recording"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
 

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Play, Pause, RotateCcw, SkipForward, Volume2, Flame, Sparkles, CheckCircle, ClipboardCheck, Check } from 'lucide-react';
+import { X, Play, Pause, RotateCcw, SkipForward, Volume2, Flame, Sparkles, CheckCircle, ClipboardCheck, Check, Mic } from 'lucide-react';
 import { Routine, PracticeStep } from '../types';
 import { chimeSynthesizer } from '../utils/AudioSynthesizer';
 import { useRoutineStore } from '../store/useRoutineStore';
 import ConfirmationModal from './ConfirmationModal';
+import VoiceConfigureModal from './VoiceConfigureModal';
 
 interface TimerScreenProps {
   routine: Routine;
@@ -53,6 +54,11 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
   const [currentSet, setCurrentSet] = useState(1);
   const [currentRep, setCurrentRep] = useState(0); // stores rep count for 'reps', or loop count for 'audio-loop'
   const [repSubPhase, setRepSubPhase] = useState<'work' | 'rest'>('work');
+
+  const [voiceEditModalOpen, setVoiceEditModalOpen] = useState(false);
+  const [unconfiguredStepsToEdit, setUnconfiguredStepsToEdit] = useState<PracticeStep[]>([]);
+  const [startAfterConfig, setStartAfterConfig] = useState(false);
+  const handleSaveEditedRoutine = useRoutineStore((state) => state.handleSaveEditedRoutine);
 
   const storeRoutine = useRoutineStore((state) => state.routines.find((r) => r.id === routine.id)) || routine;
   const checklist = storeRoutine.checklist || [];
@@ -127,9 +133,10 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
   // Handle Audio Loops playback logic
   useEffect(() => {
     if (currentStep && currentStep.stepFormat === 'audio-loop' && phase === 'timer') {
-      if (isPlaying && currentStep.audioData) {
+      const audioSrc = currentStep.audioData || localStorage.getItem(`audio_loop_${currentStep.id}`);
+      if (isPlaying && audioSrc) {
         if (!activeAudioRef.current) {
-          const audio = new Audio(currentStep.audioData);
+          const audio = new Audio(audioSrc);
           activeAudioRef.current = audio;
           
           audio.onended = () => {
@@ -199,7 +206,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
                   }
                 }
               } else {
-                if (routine.tickingSoundEnabled !== false) {
+                if (routine.tickingSoundEnabled !== false && currentStep.stepFormat !== 'audio-loop') {
                   chimeSynthesizer.playTick();
                 }
                 return prev - 1;
@@ -215,7 +222,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
                 const pace = currentStep.repPace || 3.0;
                 return pace;
               } else {
-                if (routine.tickingSoundEnabled !== false) {
+                if (routine.tickingSoundEnabled !== false && currentStep.stepFormat !== 'audio-loop') {
                   chimeSynthesizer.playTick();
                 }
                 return prev - 1;
@@ -233,7 +240,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
               handleNextStep();
               return 0;
             }
-            if (routine.tickingSoundEnabled !== false) {
+            if (routine.tickingSoundEnabled !== false && currentStep.stepFormat !== 'audio-loop') {
               chimeSynthesizer.playTick();
             }
             return prev - 1;
@@ -350,6 +357,33 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
       onClose(false, 0);
     } else {
       setShowExitModal(true);
+    }
+  };
+
+  const handleLocalVoiceConfigured = async (audioDataMap: Record<string, string>) => {
+    const isPreconfigured =
+      routine.isPreconfigured ||
+      DEFAULT_ROUTINES.some((dr) => dr.id === routine.id);
+
+    if (!isPreconfigured) {
+      let updatedRoutine = { ...routine };
+      updatedRoutine.steps = updatedRoutine.steps.map((step) => {
+        if (audioDataMap[step.id]) {
+          return { ...step, audioData: audioDataMap[step.id] };
+        }
+        return step;
+      });
+
+      try {
+        await handleSaveEditedRoutine(updatedRoutine);
+      } catch (err) {
+        console.error('Failed to save configured voice steps to database', err);
+      }
+    }
+    setVoiceEditModalOpen(false);
+    if (startAfterConfig) {
+      setPhase('timer');
+      setIsPlaying(true);
     }
   };
 
@@ -514,11 +548,27 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
                                 {step.description || 'Breath alignment and focus.'}
                               </span>
                             </div>
-                            <span className={`font-mono text-xs font-bold whitespace-nowrap shrink-0 px-2 py-0.5 rounded ${
-                              isRest ? 'bg-indigo-500/10 text-indigo-300' : 'bg-[#00f0ff]/10 text-[#00f0ff]'
-                            }`}>
-                              {formatLabel}
-                            </span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {step.stepFormat === 'audio-loop' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setUnconfiguredStepsToEdit([step]);
+                                    setStartAfterConfig(false);
+                                    setVoiceEditModalOpen(true);
+                                  }}
+                                  className="p-1.5 text-on-surface-variant hover:text-[#00f0ff] rounded-lg hover:bg-white/5 transition-all cursor-pointer"
+                                  title="Edit recording"
+                                >
+                                  <Mic className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <span className={`font-mono text-xs font-bold whitespace-nowrap px-2 py-0.5 rounded ${
+                                isRest ? 'bg-indigo-500/10 text-indigo-300' : 'bg-[#00f0ff]/10 text-[#00f0ff]'
+                              }`}>
+                                {formatLabel}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       );
@@ -609,8 +659,20 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
                 <div className="mt-6 pt-4 border-t border-outline-variant/10 w-full flex justify-end">
                   <button
                     onClick={() => {
-                      setPhase('timer');
-                      setIsPlaying(true);
+                      const unconfigured = (steps || []).filter(
+                        (step) =>
+                          step.stepFormat === 'audio-loop' &&
+                          !step.audioData &&
+                          !localStorage.getItem(`audio_loop_${step.id}`)
+                      );
+                      if (unconfigured.length > 0) {
+                        setUnconfiguredStepsToEdit(unconfigured);
+                        setStartAfterConfig(true);
+                        setVoiceEditModalOpen(true);
+                      } else {
+                        setPhase('timer');
+                        setIsPlaying(true);
+                      }
                     }}
                     className="bg-[#00f0ff] text-black font-sans font-bold text-sm px-10 py-4 rounded-xl hover:bg-white transition-all active:scale-95 cursor-pointer glow-button shadow-cyan-500/10 flex items-center gap-2 group w-full justify-center lg:w-auto"
                   >
@@ -800,6 +862,15 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
         confirmText="End Session"
         cancelText="Resume"
         type="warning"
+      />
+
+      {/* Voice Configuration Modal for editing in setup phase */}
+      <VoiceConfigureModal
+        isOpen={voiceEditModalOpen}
+        onClose={() => setVoiceEditModalOpen(false)}
+        routine={routine}
+        unconfiguredSteps={unconfiguredStepsToEdit}
+        onConfigured={handleLocalVoiceConfigured}
       />
     </motion.div>
   );

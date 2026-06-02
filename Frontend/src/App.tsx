@@ -8,6 +8,8 @@ import { supabase } from './utils/supabaseClient';
 // Import View Components
 import LandingPage from './components/LandingPage';
 import AuthScreen from './components/AuthScreen';
+import VoiceConfigureModal from './components/VoiceConfigureModal';
+import { DEFAULT_ROUTINES } from './data/defaultRoutines';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import RoutinesDashboard from './components/RoutinesDashboard';
@@ -19,6 +21,10 @@ import ProfileScreen from './components/ProfileScreen';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ActiveScreen>('landing');
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
+  const [voiceModalRoutine, setVoiceModalRoutine] = useState<Routine | null>(null);
+  const [unconfiguredSteps, setUnconfiguredSteps] = useState<any[]>([]);
+  const [voiceEditOnly, setVoiceEditOnly] = useState(false);
 
   const {
     user,
@@ -99,6 +105,44 @@ export default function App() {
     setCurrentScreen('timer');
   };
 
+  const handleVoiceConfigured = async (audioDataMap: Record<string, string>) => {
+    if (!voiceModalRoutine) return;
+
+    let updatedRoutine = { ...voiceModalRoutine };
+    updatedRoutine.steps = updatedRoutine.steps.map((step) => {
+      if (audioDataMap[step.id]) {
+        return { ...step, audioData: audioDataMap[step.id] };
+      }
+      return step;
+    });
+
+    const isPreconfigured =
+      voiceModalRoutine.isPreconfigured ||
+      DEFAULT_ROUTINES.some((dr) => dr.id === voiceModalRoutine.id);
+
+    if (!isPreconfigured) {
+      try {
+        await handleSaveEditedRoutine(updatedRoutine);
+      } catch (err) {
+        console.error('Failed to save configured voice steps to database', err);
+      }
+    }
+
+    setVoiceModalOpen(false);
+    if (!voiceEditOnly) {
+      const stillHasUnconfigured = (updatedRoutine.steps || []).some(
+        (step) =>
+          step.stepFormat === 'audio-loop' &&
+          !step.audioData &&
+          !localStorage.getItem(`audio_loop_${step.id}`)
+      );
+      if (!stillHasUnconfigured) {
+        handleStartRoutine(updatedRoutine);
+        setCurrentScreen('timer');
+      }
+    }
+  };
+
   const handleEditRoutine = (routine: Routine) => {
     handleStartRoutine(routine);
     setCurrentScreen('edit-routine');
@@ -169,6 +213,12 @@ export default function App() {
             onEditRoutine={handleEditRoutine}
             onDeleteRoutine={handleDeleteRoutine}
             onCreateRoutine={handleCreateRoutine}
+            onEditVoice={(routine) => {
+              setVoiceModalRoutine(routine);
+              setUnconfiguredSteps(routine.steps.filter((s) => s.stepFormat === 'audio-loop'));
+              setVoiceEditOnly(true);
+              setVoiceModalOpen(true);
+            }}
           />
         );
       case 'edit-routine':
@@ -283,6 +333,17 @@ export default function App() {
       <main className="flex-1 flex flex-col min-h-screen overflow-x-hidden relative">
         {renderMainContent()}
       </main>
+
+      {/* Voice Configuration Modal */}
+      {voiceModalRoutine && (
+        <VoiceConfigureModal
+          isOpen={voiceModalOpen}
+          onClose={() => setVoiceModalOpen(false)}
+          routine={voiceModalRoutine}
+          unconfiguredSteps={unconfiguredSteps}
+          onConfigured={handleVoiceConfigured}
+        />
+      )}
     </div>
   );
 }

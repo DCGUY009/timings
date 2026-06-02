@@ -2,6 +2,105 @@ import { Routine, SessionHistoryItem, ChecklistItem } from '../types';
 
 export const DEFAULT_ROUTINES: Routine[] = [
   {
+    id: 'shambhavi-mahamudra-kriya',
+    name: 'Shambhavi Mahamudra Kriya',
+    description: 'A sacred 21-minute energy practice transmitted through Isha Foundation. Includes Hatha Yoga preparatory asanas, pranayama, AUM chanting, and meditation.',
+    category: 'Focus',
+    steps: [
+      {
+        id: 'smk-1',
+        name: 'Patangasana (Butterfly Pose)',
+        description: 'Sit straight, bring soles of feet together, and flap thighs gently to loosen up hip joints.',
+        duration: 120,
+        cue: 'single-chime',
+        type: 'flow',
+        stepFormat: 'duration'
+      },
+      {
+        id: 'smk-2',
+        name: 'Shishupalasana (Rock Baby - Right)',
+        description: 'Cradle your right leg in your arms and rock it side-to-side gently to flex the pelvic region.',
+        duration: 120,
+        cue: 'single-chime',
+        type: 'flow',
+        stepFormat: 'duration'
+      },
+      {
+        id: 'smk-3',
+        name: 'Shishupalasana (Rock Baby - Left)',
+        description: 'Cradle your left leg in your arms and rock it side-to-side gently to flex the pelvic region.',
+        duration: 120,
+        cue: 'single-chime',
+        type: 'flow',
+        stepFormat: 'duration'
+      },
+      {
+        id: 'smk-4',
+        name: 'Nadi Vibhajan (Cat Stretch)',
+        description: 'Get on all fours. Arch and hollow the spine rhythmically (3 sets of 10 reps, 10s per rep).',
+        duration: 15,
+        cue: 'single-chime',
+        type: 'interval',
+        stepFormat: 'reps',
+        sets: 3,
+        reps: 10,
+        repPace: 10
+      },
+      {
+        id: 'smk-5',
+        name: 'Sukha Kriya (Alternate Nostril)',
+        description: 'Sit cross-legged with an erect spine. Effortlessly alternate breathing through left and right nostrils.',
+        duration: 360,
+        cue: 'double-chime',
+        type: 'flow',
+        stepFormat: 'duration'
+      },
+      {
+        id: 'smk-6',
+        name: 'AUM Chanting',
+        description: 'Take a deep breath and chant AUM on the exhalation. Speak Aaa, Uuuu, and Mmmm equally.',
+        duration: 3,
+        cue: 'single-chime',
+        type: 'work',
+        stepFormat: 'audio-loop',
+        reps: 21
+      },
+      {
+        id: 'smk-7',
+        name: 'Vipareeta Swasa (Belly Breath)',
+        description: 'Engage in rapid, fast-paced belly breathing to energize the system.',
+        duration: 210,
+        cue: 'single-chime',
+        type: 'flow',
+        stepFormat: 'duration'
+      },
+      {
+        id: 'smk-8',
+        name: 'Bandhas (Muscular Locks)',
+        description: 'Engage pelvic floor (Mula), lower abdomen (Uddiyana), and throat lock (Jalandhara) on breath retention.',
+        duration: 90,
+        cue: 'single-chime',
+        type: 'flow',
+        stepFormat: 'duration'
+      },
+      {
+        id: 'smk-9',
+        name: 'Shambhavi Mudra (Meditation)',
+        description: 'Sit in stillness. Tilt head slightly up, eyes closed, focus soft inner gaze between eyebrows.',
+        duration: 330,
+        cue: 'double-chime',
+        type: 'flow',
+        stepFormat: 'duration'
+      }
+    ],
+    checklist: [
+      { id: 'smk-cl-1', label: 'Empty stomach (4 hours since last meal)', checked: false },
+      { id: 'smk-cl-2', label: 'Eyeglasses removed', checked: false },
+      { id: 'smk-cl-3', label: 'Quiet space facing East (or North)', checked: false },
+      { id: 'smk-cl-4', label: 'Spine erect and posture comfortable', checked: false }
+    ]
+  },
+  {
     id: 'deep-work-block',
     name: 'Deep Work Block',
     description: 'Pomodoro sequence optimized for 90-minute intense focus with tactical rest breaks.',
