@@ -22,11 +22,21 @@ export default function Dashboard({
   streakDays,
 }: DashboardProps) {
 
+  // Merge user custom routines and preconfigured example routines for checklist selection
+  const allAvailableRoutines = [
+    ...routines.filter(
+      (r) => 
+        !DEFAULT_ROUTINES.some((dr) => dr.id === r.id) &&
+        !DEFAULT_ROUTINES.some((dr) => dr.name.toLowerCase() === r.name.toLowerCase())
+    ),
+    ...DEFAULT_ROUTINES.map(dr => ({ ...dr, isPreconfigured: true }))
+  ];
+
   // Let's keep a state of the currently selected routine for the checklist
-  const [selectedRoutineId, setSelectedRoutineId] = useState<string>(routines[0]?.id || '');
+  const [selectedRoutineId, setSelectedRoutineId] = useState<string>(allAvailableRoutines[0]?.id || '');
 
   // Find selected routine
-  const selectedRoutine = routines.find(r => r.id === selectedRoutineId) || routines[0];
+  const selectedRoutine = allAvailableRoutines.find(r => r.id === selectedRoutineId) || allAvailableRoutines[0];
   const activeChecklist = selectedRoutine?.checklist || [];
 
   // Sort routines to get some quick starters
@@ -213,13 +223,13 @@ export default function Dashboard({
               {/* Routine selector dropdown */}
               <div className="relative">
                 <select
-                  value={selectedRoutineId || (routines[0]?.id || '')}
+                  value={selectedRoutineId || (allAvailableRoutines[0]?.id || '')}
                   onChange={(e) => setSelectedRoutineId(e.target.value)}
                   className="w-full bg-surface-container border border-outline-variant/35 text-on-surface font-sans font-semibold text-xs rounded-xl px-3 py-2 cursor-pointer outline-none focus:border-primary-container"
                 >
-                  {routines.map((r) => (
+                  {allAvailableRoutines.map((r) => (
                     <option key={r.id} value={r.id} className="bg-surface-container-high">
-                      {r.name} Checklist
+                      {r.name} Checklist {r.isPreconfigured ? '(Example)' : ''}
                     </option>
                   ))}
                 </select>
@@ -244,7 +254,18 @@ export default function Dashboard({
                 activeChecklist.map((item) => (
                   <div
                     key={item.id}
-                    onClick={() => selectedRoutine && onToggleRoutineCheck(selectedRoutine.id, item.id)}
+                    onClick={() => {
+                      if (selectedRoutine) {
+                        if (selectedRoutine.isPreconfigured) {
+                          // Toggle preconfigured checklist item locally on Dashboard context
+                          item.checked = !item.checked;
+                          // Trigger rerender
+                          setSelectedRoutineId(selectedRoutine.id);
+                        } else {
+                          onToggleRoutineCheck(selectedRoutine.id, item.id);
+                        }
+                      }
+                    }}
                     className="flex items-start gap-3 cursor-pointer group select-none"
                   >
                     <div className={`w-4.5 h-4.5 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-all ${
