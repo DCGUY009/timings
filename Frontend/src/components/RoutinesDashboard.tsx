@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Plus, Play, Edit2, Trash2, Library } from 'lucide-react';
+import { Search, Plus, Play, Edit2, Trash2, Library, Sparkles } from 'lucide-react';
 import { Routine } from '../types';
 import ConfirmationModal from './ConfirmationModal';
+import { DEFAULT_ROUTINES } from '../data/defaultRoutines';
 
 interface RoutinesDashboardProps {
   routines: Routine[];
@@ -39,6 +40,15 @@ export default function RoutinesDashboard({
   };
 
   const filteredRoutines = routines.filter((curr) => {
+    const matchesSearch = curr.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          curr.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = activeFilter === 'All' || curr.category.toLowerCase() === activeFilter.toLowerCase();
+    return matchesSearch && matchesCategory;
+  });
+
+  // Preconfigured routines are always shown (mark them so card can disable actions)
+  const preconfiguredRoutines: Routine[] = DEFAULT_ROUTINES.map(r => ({ ...r, isPreconfigured: true }));
+  const filteredPreconfigured = preconfiguredRoutines.filter((curr) => {
     const matchesSearch = curr.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           curr.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = activeFilter === 'All' || curr.category.toLowerCase() === activeFilter.toLowerCase();
@@ -218,10 +228,10 @@ export default function RoutinesDashboard({
       </div>
 
       {filteredRoutines.length === 0 && routines.length > 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-center text-on-surface-variant">
-          <Library className="w-12 h-12 text-outline/50 mb-3" />
+        <div className="flex flex-col items-center justify-center py-10 text-center text-on-surface-variant">
+          <Library className="w-10 h-10 text-outline/50 mb-3" />
           <p className="text-sm font-sans font-medium">No matching routines found.</p>
-          <button 
+          <button
             onClick={() => { setSearchQuery(''); setActiveFilter('All'); }}
             className="text-xs font-mono text-primary-container underline mt-2 hover:text-white"
           >
@@ -229,6 +239,111 @@ export default function RoutinesDashboard({
           </button>
         </div>
       )}
+
+      {/* ─── Preconfigured Example Routines ─── */}
+      <div className="mt-14">
+        <div className="flex items-center gap-3 mb-6">
+          <Sparkles className="w-4 h-4 text-[#eac324]/80" />
+          <h2 className="text-lg font-bold font-sans tracking-tight text-on-surface">
+            Preconfigured Routines
+          </h2>
+          <span className="text-[10px] font-mono font-bold uppercase tracking-widest px-2.5 py-1 bg-[#eac324]/10 text-[#ffe179] border border-[#eac324]/25 rounded-lg">
+            Examples
+          </span>
+        </div>
+        <p className="text-sm font-sans text-on-surface-variant mb-8 -mt-3">
+          Ready-to-use routines curated for everyone. Start one directly or use it as inspiration for your own.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <AnimatePresence mode="popLayout">
+            {filteredPreconfigured.map((routine) => {
+              const stepsCount = routine.steps.length;
+              const durationStr = getDurationString(routine.steps);
+
+              const badgeColors =
+                routine.category.toLowerCase() === 'focus' ? 'bg-[#3131c0]/40 text-[#c0c1ff] border-[#3131c0]/60' :
+                routine.category.toLowerCase() === 'workout' ? 'bg-secondary-container/40 text-on-secondary-container border-secondary-container/60' :
+                routine.category.toLowerCase() === 'morning' ? 'bg-[#eac324]/15 text-[#ffe179] border-[#eac324]/30' :
+                'bg-surface-container-highest text-on-surface-variant border-outline-variant/35';
+
+              return (
+                <motion.div
+                  layout
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  key={`preconfigured-${routine.id}`}
+                  className="bg-surface-container-low/60 border border-[#eac324]/15 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 group hover:border-[#eac324]/35 hover:translate-y-[-2px] relative overflow-hidden"
+                >
+                  {/* Golden accent top bar */}
+                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-[#eac324]/15 transition-colors group-hover:bg-[#eac324]/40"></div>
+
+                  <div>
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`text-[10px] uppercase font-mono font-bold tracking-widest px-2.5 py-1 border rounded-lg ${badgeColors}`}>
+                          {routine.category}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold px-2.5 py-1 bg-[#eac324]/10 text-[#ffe179] border border-[#eac324]/25 rounded-lg flex items-center gap-1">
+                          <Sparkles className="w-2.5 h-2.5" /> Preconfigured
+                        </span>
+                      </div>
+                    </div>
+
+                    <h3 className="font-sans font-bold text-[21px] text-on-surface tracking-tight mb-2 leading-snug group-hover:text-[#ffe179] transition-colors">
+                      {routine.name}
+                    </h3>
+
+                    <p className="text-sm font-sans text-on-surface-variant line-clamp-2 leading-relaxed mb-6">
+                      {routine.description || 'No description provided.'}
+                    </p>
+                  </div>
+
+                  <div className="pt-4 border-t border-[#eac324]/10 flex items-center justify-between mt-auto">
+                    <div className="flex items-center gap-5">
+                      <div className="space-y-1">
+                        <span className="block text-[10px] font-mono tracking-wider text-[#849495] uppercase font-bold leading-none">
+                          Duration
+                        </span>
+                        <span className="block text-xs font-mono font-bold text-on-surface leading-none">
+                          {durationStr}
+                        </span>
+                      </div>
+
+                      <div className="h-6 w-[1px] bg-outline-variant/20 self-center"></div>
+
+                      <div className="space-y-1">
+                        <span className="block text-[10px] font-mono tracking-wider text-[#849495] uppercase font-bold leading-none">
+                          Steps
+                        </span>
+                        <span className="block text-xs font-mono font-bold text-on-surface leading-none">
+                          {stepsCount} step{stepsCount !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => onStartRoutine(routine)}
+                      className="p-3.5 bg-[#eac324]/15 hover:bg-[#eac324]/30 text-[#ffe179] rounded-full transition-all duration-200 cursor-pointer shadow-lg active:scale-90 group-hover:scale-105 border border-[#eac324]/25"
+                      title="Run this preconfigured routine"
+                    >
+                      <Play className="w-4 h-4 fill-current ml-0.5" />
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+
+        {filteredPreconfigured.length === 0 && (searchQuery || activeFilter !== 'All') && (
+          <div className="flex flex-col items-center justify-center py-12 text-center text-on-surface-variant border-2 border-dashed border-[#eac324]/15 rounded-2xl">
+            <Sparkles className="w-8 h-8 text-[#eac324]/30 mb-2" />
+            <p className="text-sm font-sans font-medium">No preconfigured routines match your filters.</p>
+          </div>
+        )}
+      </div>
 
       {/* Confirmation Modal for Routine Deletion */}
       <ConfirmationModal

@@ -14,16 +14,48 @@ const calculateStreak = (history: SessionHistoryItem[]): number => {
     return `${year}-${month}-${day}`;
   };
 
-  const parseToLocalDate = (timestamp: string): string | null => {
-    const dateStr = timestamp.split('•')[0].trim();
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return null;
-    return getLocalDateString(d);
+  /**
+   * Resolve a session to a local-timezone YYYY-MM-DD date string.
+   *
+   * Priority:
+   *  1. `createdAt` — an ISO 8601 UTC string (e.g. "2026-06-02T06:45:00Z").
+   *     new Date(isoString) is unambiguous; getFullYear/getMonth/getDate then
+   *     read the user's LOCAL date — exactly what we want for streak purposes.
+   *  2. Manual regex parse of the human-readable `timestamp` string
+   *     (e.g. "Jun 2, 2026 • 9:00 AM") as LOCAL time so there is no UTC shift.
+   */
+  const resolveLocalDateStr = (item: SessionHistoryItem): string | null => {
+    // --- path 1: ISO timestamp (preferred) ---
+    if (item.createdAt) {
+      const d = new Date(item.createdAt);
+      if (!isNaN(d.getTime())) return getLocalDateString(d);
+    }
+
+    // --- path 2: parse human-readable string as local date ---
+    const displayPart = item.timestamp.split('•')[0].trim();
+    // Expected format: "Mon DD, YYYY" e.g. "Jun 2, 2026"
+    const MONTHS: Record<string, number> = {
+      Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+      Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
+    };
+    const match = displayPart.match(/^([A-Za-z]{3})\s+(\d{1,2}),\s*(\d{4})$/);
+    if (match) {
+      const mo = MONTHS[match[1]];
+      const day = parseInt(match[2], 10);
+      const yr = parseInt(match[3], 10);
+      if (mo !== undefined && !isNaN(day) && !isNaN(yr)) {
+        // Construct as LOCAL midnight — no UTC shift
+        const d = new Date(yr, mo, day);
+        if (!isNaN(d.getTime())) return getLocalDateString(d);
+      }
+    }
+
+    return null;
   };
 
   const loggedDates = Array.from(new Set(
     history
-      .map(item => parseToLocalDate(item.timestamp))
+      .map(item => resolveLocalDateStr(item))
       .filter((d): d is string => d !== null)
   )).sort((a, b) => b.localeCompare(a)); // Descending order
 
@@ -37,6 +69,7 @@ const calculateStreak = (history: SessionHistoryItem[]): number => {
   const hasToday = loggedDates.includes(todayStr);
   const hasYesterday = loggedDates.includes(yesterdayStr);
 
+  // Streak is only alive if the user practiced today OR yesterday
   if (!hasToday && !hasYesterday) {
     return 0;
   }
@@ -44,6 +77,7 @@ const calculateStreak = (history: SessionHistoryItem[]): number => {
   let streak = 0;
   const checkDate = new Date();
 
+  // If no session today but has one yesterday, start counting from yesterday
   if (!hasToday && hasYesterday) {
     checkDate.setDate(checkDate.getDate() - 1);
   }
@@ -303,6 +337,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
         id: h.id,
         routineName: h.routine_name,
         timestamp: h.timestamp,
+        createdAt: h.created_at, // ISO UTC string — used for accurate streak calculation
         durationMinutes: h.duration_minutes,
         completionRate: h.completion_rate
       }));
@@ -600,6 +635,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
         id: `log-${Date.now()}`,
         routineName: activeRoutine.name,
         timestamp: `${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`,
+        createdAt: new Date().toISOString(), // ISO UTC — used for accurate streak calculation
         durationMinutes: sessionLengthInMinutes,
         completionRate: 100
       };

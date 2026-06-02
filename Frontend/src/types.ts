@@ -26,12 +26,14 @@ export interface Routine {
   lastExecuted?: string; // string representing time elapsed, e.g. "Today, 9:00 AM" or null
   checklist?: ChecklistItem[];
   tickingSoundEnabled?: boolean;
+  isPreconfigured?: boolean; // true for built-in example routines shown to all users
 }
 
 export interface SessionHistoryItem {
   id: string;
   routineName: string;
-  timestamp: string;
+  timestamp: string; // human-readable display string e.g. "Jun 2, 2026 • 9:00 AM"
+  createdAt?: string; // ISO 8601 UTC timestamp for accurate date calculations
   durationMinutes: number;
   completionRate: number; // percentage
 }
