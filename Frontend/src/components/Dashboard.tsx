@@ -114,13 +114,18 @@ export default function Dashboard({
 
             <div className="space-y-4">
               {/* User routines section */}
-              {routines.length > 0 && (
-                <div className="space-y-3">
-                  <span className="text-[10px] font-mono tracking-wider text-outline uppercase font-bold">
-                    My Custom Routines ({routines.length})
-                  </span>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {routines.slice(0, 4).map((routine) => (
+              {(() => {
+                const userOnlyRoutines = routines.filter(
+                  (r) => !DEFAULT_ROUTINES.some((dr) => dr.id === r.id)
+                );
+                if (userOnlyRoutines.length === 0) return null;
+                return (
+                  <div className="space-y-3">
+                    <span className="text-[10px] font-mono tracking-wider text-outline uppercase font-bold">
+                      My Custom Routines ({userOnlyRoutines.length})
+                    </span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {userOnlyRoutines.slice(0, 4).map((routine) => (
                       <div
                         key={routine.id}
                         onClick={() => onStartRoutine(routine)}
@@ -147,7 +152,8 @@ export default function Dashboard({
                     ))}
                   </div>
                 </div>
-              )}
+              );
+            })()}
 
               {/* Preconfigured Example routines section */}
               <div className="space-y-3 pt-2">

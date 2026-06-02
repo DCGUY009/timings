@@ -39,12 +39,14 @@ export default function RoutinesDashboard({
     return res.trim() || '0s';
   };
 
-  const filteredRoutines = routines.filter((curr) => {
-    const matchesSearch = curr.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          curr.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = activeFilter === 'All' || curr.category.toLowerCase() === activeFilter.toLowerCase();
-    return matchesSearch && matchesCategory;
-  });
+  const filteredRoutines = routines
+    .filter((curr) => !DEFAULT_ROUTINES.some((dr) => dr.id === curr.id))
+    .filter((curr) => {
+      const matchesSearch = curr.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            curr.description.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = activeFilter === 'All' || curr.category.toLowerCase() === activeFilter.toLowerCase();
+      return matchesSearch && matchesCategory;
+    });
 
   // Preconfigured routines are always shown (mark them so card can disable actions)
   const preconfiguredRoutines: Routine[] = DEFAULT_ROUTINES.map(r => ({ ...r, isPreconfigured: true }));
