@@ -405,7 +405,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-50 bg-background text-on-surface grid-bg flex flex-col justify-between p-6 md:p-12 select-none"
+      className="fixed inset-0 z-50 bg-background text-on-surface grid-bg flex flex-col justify-between p-6 md:p-12 select-none overflow-y-auto"
     >
       {/* Header Watermark (Image 2 top left and Close top right) */}
       <header className="flex justify-between items-center w-full max-w-5xl mx-auto">

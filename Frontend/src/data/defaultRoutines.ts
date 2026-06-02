@@ -57,10 +57,10 @@ export const DEFAULT_ROUTINES: Routine[] = [
       }
     ],
     checklist: [
-      { id: 'dw-ec-1', label: 'Close distracting browser tabs', checked: true },
-      { id: 'dw-ec-2', label: 'Set Slack / Discord to Away', checked: true },
+      { id: 'dw-ec-1', label: 'Close distracting browser tabs', checked: false },
+      { id: 'dw-ec-2', label: 'Set Slack / Discord to Away', checked: false },
       { id: 'dw-ec-3', label: 'Noise-canceling headphones ready', checked: false },
-      { id: 'dw-ec-4', label: 'Water bottle at desk', checked: true }
+      { id: 'dw-ec-4', label: 'Water bottle at desk', checked: false }
     ]
   },
   {
@@ -111,10 +111,10 @@ export const DEFAULT_ROUTINES: Routine[] = [
       }
     ],
     checklist: [
-      { id: 'sa-ec-1', label: 'Glass of water prepared', checked: true },
-      { id: 'sa-ec-2', label: 'Quiet space with natural light', checked: true },
+      { id: 'sa-ec-1', label: 'Glass of water prepared', checked: false },
+      { id: 'sa-ec-2', label: 'Quiet space with natural light', checked: false },
       { id: 'sa-ec-3', label: 'Comfortable loose clothing', checked: false },
-      { id: 'sa-ec-4', label: 'Barefoot or thin socks', checked: true }
+      { id: 'sa-ec-4', label: 'Barefoot or thin socks', checked: false }
     ]
   },
   {
@@ -157,10 +157,10 @@ export const DEFAULT_ROUTINES: Routine[] = [
       }
     ],
     checklist: [
-      { id: 'kb-ec-1', label: 'Solid non-slip floor checked', checked: true },
-      { id: 'kb-ec-2', label: 'Clear 2m x 2m workout arena', checked: true },
+      { id: 'kb-ec-1', label: 'Solid non-slip floor checked', checked: false },
+      { id: 'kb-ec-2', label: 'Clear 2m x 2m workout arena', checked: false },
       { id: 'kb-ec-3', label: 'Kettlebell handle and weight secure', checked: false },
-      { id: 'kb-ec-4', label: 'Sweat towel handy', checked: true }
+      { id: 'kb-ec-4', label: 'Sweat towel handy', checked: false }
     ]
   },
   {
@@ -195,18 +195,18 @@ export const DEFAULT_ROUTINES: Routine[] = [
       }
     ],
     checklist: [
-      { id: 'ms-ec-1', label: 'Yoga mat or soft carpet', checked: true },
-      { id: 'ms-ec-2', label: 'Quiet soothing background noise', checked: true },
+      { id: 'ms-ec-1', label: 'Yoga mat or soft carpet', checked: false },
+      { id: 'ms-ec-2', label: 'Quiet soothing background noise', checked: false },
       { id: 'ms-ec-3', label: 'Posture checked in reflecting window', checked: false }
     ]
   }
 ];
 
 export const DEFAULT_CHECKLIST: ChecklistItem[] = [
-  { id: 'ec-1', label: 'Quiet Space Secured', checked: true },
-  { id: 'ec-2', label: 'Water Nearby', checked: true },
+  { id: 'ec-1', label: 'Quiet Space Secured', checked: false },
+  { id: 'ec-2', label: 'Water Nearby', checked: false },
   { id: 'ec-3', label: 'Yoga Mat / Cushion', checked: false },
-  { id: 'ec-4', label: 'Do Not Disturb Enabled', checked: true }
+  { id: 'ec-4', label: 'Do Not Disturb Enabled', checked: false }
 ];
 
 export const DEFAULT_HISTORY: SessionHistoryItem[] = [
