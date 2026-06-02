@@ -47,6 +47,15 @@ export const DEFAULT_ROUTINES: Routine[] = [
         repPace: 10
       },
       {
+        id: 'smk-4-rest',
+        name: 'Rest',
+        description: 'Relax and settle your breath after Cat Stretch.',
+        duration: 30,
+        cue: 'single-chime',
+        type: 'rest',
+        stepFormat: 'duration'
+      },
+      {
         id: 'smk-5',
         name: 'Sukha Kriya (Alternate Nostril)',
         description: 'Sit cross-legged with an erect spine. Effortlessly alternate breathing through left and right nostrils.',
