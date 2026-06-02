@@ -134,9 +134,11 @@ export default function Dashboard({
                 if (userOnlyRoutines.length === 0) {
                   return (
                     <div className="space-y-3">
-                      <span className="text-[10px] font-mono tracking-wider text-outline uppercase font-bold">
-                        My Custom Routines (0)
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono tracking-wider text-outline uppercase font-bold">
+                          My Custom Routines (0)
+                        </span>
+                      </div>
                       <div className="bg-surface-container-low/30 border border-dashed border-outline-variant/30 rounded-2xl p-6 text-center flex flex-col items-center justify-center min-h-[140px]">
                         <h4 className="font-sans font-bold text-sm text-on-surface mb-1">
                           No Custom Sequences Yet
@@ -157,9 +159,11 @@ export default function Dashboard({
 
                 return (
                   <div className="space-y-3">
-                    <span className="text-[10px] font-mono tracking-wider text-outline uppercase font-bold">
-                      My Custom Routines ({userOnlyRoutines.length})
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono tracking-wider text-outline uppercase font-bold">
+                        My Custom Routines ({userOnlyRoutines.length})
+                      </span>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {userOnlyRoutines.slice(0, 4).map((routine) => (
                         <div
