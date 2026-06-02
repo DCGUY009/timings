@@ -56,7 +56,6 @@ export const DEFAULT_ROUTINES: Routine[] = [
         type: 'work'
       }
     ],
-    lastExecuted: 'Today, 9:00 AM',
     checklist: [
       { id: 'dw-ec-1', label: 'Close distracting browser tabs', checked: true },
       { id: 'dw-ec-2', label: 'Set Slack / Discord to Away', checked: true },
@@ -111,7 +110,6 @@ export const DEFAULT_ROUTINES: Routine[] = [
         type: 'rest'
       }
     ],
-    lastExecuted: 'Yesterday',
     checklist: [
       { id: 'sa-ec-1', label: 'Glass of water prepared', checked: true },
       { id: 'sa-ec-2', label: 'Quiet space with natural light', checked: true },
@@ -158,7 +156,6 @@ export const DEFAULT_ROUTINES: Routine[] = [
         type: 'rest'
       }
     ],
-    lastExecuted: '3 days ago',
     checklist: [
       { id: 'kb-ec-1', label: 'Solid non-slip floor checked', checked: true },
       { id: 'kb-ec-2', label: 'Clear 2m x 2m workout arena', checked: true },
@@ -197,7 +194,6 @@ export const DEFAULT_ROUTINES: Routine[] = [
         type: 'rest'
       }
     ],
-    lastExecuted: 'Never',
     checklist: [
       { id: 'ms-ec-1', label: 'Yoga mat or soft carpet', checked: true },
       { id: 'ms-ec-2', label: 'Quiet soothing background noise', checked: true },
