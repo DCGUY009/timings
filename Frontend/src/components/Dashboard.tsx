@@ -218,6 +218,59 @@ export default function Dashboard({
           </div>
         </div>
       </div>
+      {/* ─── Preconfigured Example Routines at Dashboard Bottom ─── */}
+      <div className="border-t border-outline-variant/15 pt-10">
+        <div className="flex items-center gap-3 mb-4">
+          <Sparkles className="w-4.5 h-4.5 text-[#eac324]/80" />
+          <h3 className="text-xs font-mono font-bold tracking-widest text-[#849495] uppercase">
+            Preconfigured Example Sequences
+          </h3>
+          <span className="text-[9px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 bg-[#eac324]/10 text-[#ffe179] border border-[#eac324]/20 rounded-md">
+            Ready to use
+          </span>
+        </div>
+        <p className="text-xs font-sans text-on-surface-variant mb-6">
+          Try these curated example routines or head to the <button onClick={() => onNavigate('routines')} className="text-primary-container underline font-bold hover:text-white">Routines Manager</button> to design your own custom sequences.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {(() => {
+            const { DEFAULT_ROUTINES } = require('../data/defaultRoutines');
+            return DEFAULT_ROUTINES.map((routine: Routine) => {
+              const totalSec = routine.steps.reduce((sum, s) => sum + s.duration, 0);
+              const totalMin = Math.round(totalSec / 60) || 1;
+              return (
+                <div
+                  key={`dash-pre-${routine.id}`}
+                  onClick={() => onStartRoutine({ ...routine, isPreconfigured: true })}
+                  className="bg-surface-container-low/50 border border-[#eac324]/15 hover:border-[#eac324]/40 p-4 rounded-xl flex flex-col justify-between group cursor-pointer transition-all duration-300 hover:translate-y-[-1px] min-h-[140px]"
+                >
+                  <div>
+                    <span className="text-[9px] font-mono uppercase tracking-wider text-[#ffe179]/80 block mb-1">
+                      {routine.category}
+                    </span>
+                    <h4 className="font-sans font-bold text-sm text-on-surface group-hover:text-[#ffe179] transition-colors line-clamp-1">
+                      {routine.name}
+                    </h4>
+                    <p className="text-[11px] text-on-surface-variant mt-1 leading-normal line-clamp-2">
+                      {routine.description}
+                    </p>
+                  </div>
+
+                  <div className="flex justify-between items-center mt-4 pt-2 border-t border-[#eac324]/10">
+                    <span className="text-[10px] font-mono font-bold text-on-surface-variant">
+                      {totalMin}m • {routine.steps.length} steps
+                    </span>
+                    <span className="text-[10px] font-mono text-[#ffe179] group-hover:underline flex items-center gap-1 font-bold">
+                      Run <Play className="w-2.5 h-2.5 fill-current" />
+                    </span>
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+      </div>
     </motion.div>
   );
 }
