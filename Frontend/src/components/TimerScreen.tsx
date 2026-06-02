@@ -58,6 +58,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
   const [voiceEditModalOpen, setVoiceEditModalOpen] = useState(false);
   const [unconfiguredStepsToEdit, setUnconfiguredStepsToEdit] = useState<PracticeStep[]>([]);
   const [startAfterConfig, setStartAfterConfig] = useState(false);
+  const [tickingSoundEnabled, setTickingSoundEnabled] = useState(routine.tickingSoundEnabled !== false);
   const handleSaveEditedRoutine = useRoutineStore((state) => state.handleSaveEditedRoutine);
 
   const storeRoutine = useRoutineStore((state) => state.routines.find((r) => r.id === routine.id)) || routine;
@@ -206,7 +207,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
                   }
                 }
               } else {
-                if (routine.tickingSoundEnabled !== false && currentStep.stepFormat !== 'audio-loop') {
+                if (tickingSoundEnabled && currentStep.stepFormat !== 'audio-loop') {
                   chimeSynthesizer.playTick();
                 }
                 return prev - 1;
@@ -222,7 +223,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
                 const pace = currentStep.repPace || 3.0;
                 return pace;
               } else {
-                if (routine.tickingSoundEnabled !== false && currentStep.stepFormat !== 'audio-loop') {
+                if (tickingSoundEnabled && currentStep.stepFormat !== 'audio-loop') {
                   chimeSynthesizer.playTick();
                 }
                 return prev - 1;
@@ -240,7 +241,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
               handleNextStep();
               return 0;
             }
-            if (routine.tickingSoundEnabled !== false && currentStep.stepFormat !== 'audio-loop') {
+            if (tickingSoundEnabled && currentStep.stepFormat !== 'audio-loop') {
               chimeSynthesizer.playTick();
             }
             return prev - 1;
@@ -384,6 +385,24 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
     if (startAfterConfig) {
       setPhase('timer');
       setIsPlaying(true);
+    }
+  };
+
+  const handleToggleMetronome = async () => {
+    const nextVal = !tickingSoundEnabled;
+    setTickingSoundEnabled(nextVal);
+
+    const isPreconfigured =
+      routine.isPreconfigured ||
+      DEFAULT_ROUTINES.some((dr) => dr.id === routine.id);
+
+    if (!isPreconfigured) {
+      let updatedRoutine = { ...routine, tickingSoundEnabled: nextVal };
+      try {
+        await handleSaveEditedRoutine(updatedRoutine);
+      } catch (err) {
+        console.error('Failed to save metronome preference', err);
+      }
     }
   };
 
@@ -576,7 +595,30 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-outline-variant/10 flex justify-between items-center text-xs font-mono text-on-surface-variant">
+                {/* Metronome Tick Toggle */}
+                <div className="mt-6 pt-4 border-t border-outline-variant/10 flex items-center justify-between gap-4 text-xs font-sans select-none">
+                  <div className="min-w-0 flex-1">
+                    <span className="font-semibold text-on-surface block text-xs">Metronome Tick</span>
+                    <span className="text-[10px] text-on-surface-variant block mt-0.5 leading-relaxed">
+                      Play quiet clicking metronome sounds during timing run.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleToggleMetronome}
+                    className={`w-10 h-6 rounded-full transition-all relative cursor-pointer outline-none shrink-0 ${
+                      tickingSoundEnabled ? 'bg-primary-container' : 'bg-surface-container-highest'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${
+                        tickingSoundEnabled ? 'translate-x-[16px]' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-outline-variant/10 flex justify-between items-center text-xs font-mono text-on-surface-variant">
                   <span>Conductor Estimate</span>
                   <span className="font-bold text-white text-sm">
                     {Math.round(steps.reduce((sum, s) => sum + getStepDuration(s), 0) / 60)} Minutes Total
