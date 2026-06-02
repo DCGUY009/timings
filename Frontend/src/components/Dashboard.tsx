@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Play, Sparkles, Clipboard, CheckSquare, Dumbbell, Award, Flame, Zap, Check } from 'lucide-react';
 import { Routine, ChecklistItem, User } from '../types';
+import { DEFAULT_ROUTINES } from '../data/defaultRoutines';
 
 interface DashboardProps {
   user: User | null;
@@ -234,41 +235,38 @@ export default function Dashboard({
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {(() => {
-            const { DEFAULT_ROUTINES } = require('../data/defaultRoutines');
-            return DEFAULT_ROUTINES.map((routine: Routine) => {
-              const totalSec = routine.steps.reduce((sum, s) => sum + s.duration, 0);
-              const totalMin = Math.round(totalSec / 60) || 1;
-              return (
-                <div
-                  key={`dash-pre-${routine.id}`}
-                  onClick={() => onStartRoutine({ ...routine, isPreconfigured: true })}
-                  className="bg-surface-container-low/50 border border-[#eac324]/15 hover:border-[#eac324]/40 p-4 rounded-xl flex flex-col justify-between group cursor-pointer transition-all duration-300 hover:translate-y-[-1px] min-h-[140px]"
-                >
-                  <div>
-                    <span className="text-[9px] font-mono uppercase tracking-wider text-[#ffe179]/80 block mb-1">
-                      {routine.category}
-                    </span>
-                    <h4 className="font-sans font-bold text-sm text-on-surface group-hover:text-[#ffe179] transition-colors line-clamp-1">
-                      {routine.name}
-                    </h4>
-                    <p className="text-[11px] text-on-surface-variant mt-1 leading-normal line-clamp-2">
-                      {routine.description}
-                    </p>
-                  </div>
-
-                  <div className="flex justify-between items-center mt-4 pt-2 border-t border-[#eac324]/10">
-                    <span className="text-[10px] font-mono font-bold text-on-surface-variant">
-                      {totalMin}m • {routine.steps.length} steps
-                    </span>
-                    <span className="text-[10px] font-mono text-[#ffe179] group-hover:underline flex items-center gap-1 font-bold">
-                      Run <Play className="w-2.5 h-2.5 fill-current" />
-                    </span>
-                  </div>
+          {DEFAULT_ROUTINES.map((routine: Routine) => {
+            const totalSec = routine.steps.reduce((sum, s) => sum + s.duration, 0);
+            const totalMin = Math.round(totalSec / 60) || 1;
+            return (
+              <div
+                key={`dash-pre-${routine.id}`}
+                onClick={() => onStartRoutine({ ...routine, isPreconfigured: true })}
+                className="bg-surface-container-low/50 border border-[#eac324]/15 hover:border-[#eac324]/40 p-4 rounded-xl flex flex-col justify-between group cursor-pointer transition-all duration-300 hover:translate-y-[-1px] min-h-[140px]"
+              >
+                <div>
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-[#ffe179]/80 block mb-1">
+                    {routine.category}
+                  </span>
+                  <h4 className="font-sans font-bold text-sm text-on-surface group-hover:text-[#ffe179] transition-colors line-clamp-1">
+                    {routine.name}
+                  </h4>
+                  <p className="text-[11px] text-on-surface-variant mt-1 leading-normal line-clamp-2">
+                    {routine.description}
+                  </p>
                 </div>
-              );
-            });
-          })()}
+
+                <div className="flex justify-between items-center mt-4 pt-2 border-t border-[#eac324]/10">
+                  <span className="text-[10px] font-mono font-bold text-on-surface-variant">
+                    {totalMin}m • {routine.steps.length} steps
+                  </span>
+                  <span className="text-[10px] font-mono text-[#ffe179] group-hover:underline flex items-center gap-1 font-bold">
+                    Run <Play className="w-2.5 h-2.5 fill-current" />
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </motion.div>
