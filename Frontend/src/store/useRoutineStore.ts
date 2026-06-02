@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../utils/supabaseClient';
 import { Routine, SessionHistoryItem, ChecklistItem, User } from '../types';
-import { DEFAULT_ROUTINES, DEFAULT_CHECKLIST } from '../data/defaultRoutines';
+
 
 // Helper to calculate daily consecutive practice streak from history items
 const calculateStreak = (history: SessionHistoryItem[]): number => {
@@ -270,101 +270,7 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
       }
       console.log('[fetchData] Session history fetched successfully. Count:', dbHistory?.length || 0);
 
-      // --- SEED DATABASE IF NEW USER (0 ROUTINES IN CLOUD) ---
-      // Get the profile created_at timestamp from the DB to verify account age.
-      // If the account was created more than 5 minutes ago, they are not a new user
-      // and we shouldn't re-seed defaults even if they deleted all their routines.
-      const { data: profileRow } = await supabase
-        .from('profiles')
-        .select('created_at')
-        .eq('id', userId)
-        .single();
-      
-      const profileCreatedAt = profileRow?.created_at ? new Date(profileRow.created_at).getTime() : Date.now();
-      const profileAgeMs = Date.now() - profileCreatedAt;
-      const isNewProfile = profileAgeMs < 5 * 60 * 1000; // 5 minutes
 
-      const hasSomeData = (dbRoutines && dbRoutines.length > 0) || 
-                          (dbChecklist && dbChecklist.length > 0) || 
-                          (dbHistory && dbHistory.length > 0);
-
-      if ((!dbRoutines || dbRoutines.length === 0) && isNewProfile && !hasSomeData) {
-        console.log('[fetchData] New user detected (0 cloud routines). Seeding defaults...');
-        
-        // Seed default routines
-        for (const routine of DEFAULT_ROUTINES) {
-          try {
-            const uniqueRoutineId = `${routine.id}-${userId}`;
-            
-            await supabase.from('routines').insert({
-              id: uniqueRoutineId,
-              user_id: userId,
-              name: routine.name,
-              description: routine.description,
-              category: routine.category,
-              last_executed: routine.lastExecuted,
-              ticking_sound_enabled: routine.tickingSoundEnabled ?? true
-            });
-
-            if (routine.steps && routine.steps.length > 0) {
-              await supabase.from('routine_steps').insert(
-                routine.steps.map((step, idx) => ({
-                  id: `${step.id}-${userId}`,
-                  routine_id: uniqueRoutineId,
-                  name: step.name,
-                  description: step.description,
-                  duration: step.duration,
-                  cue: step.cue,
-                  type: step.type,
-                  position: idx,
-                  step_format: step.stepFormat || 'duration',
-                  sets: step.sets || 1,
-                  reps: step.reps || 1,
-                  rep_pace: step.repPace || 3.0,
-                  audio_base64: step.audioData || null
-                }))
-              );
-            }
-
-            if (routine.checklist && routine.checklist.length > 0) {
-              await supabase.from('routine_checklist_items').insert(
-                routine.checklist.map((item, idx) => ({
-                  id: `${item.id}-${userId}`,
-                  routine_id: uniqueRoutineId,
-                  label: item.label,
-                  checked: item.checked,
-                  position: idx
-                }))
-              );
-            }
-          } catch (seedErr) {
-            console.error('[fetchData] Failed to seed routine:', routine.id, seedErr);
-          }
-        }
-
-        // Seed default global checklist
-        if (!dbChecklist || dbChecklist.length === 0) {
-          try {
-            await supabase.from('global_checklist_items').insert(
-              DEFAULT_CHECKLIST.map((item, idx) => ({
-                id: `${item.id}-${userId}`,
-                user_id: userId,
-                label: item.label,
-                checked: item.checked,
-                position: idx
-              }))
-            );
-          } catch (seedErr) {
-            console.error('[fetchData] Failed to seed checklist items:', seedErr);
-          }
-        }
-
-
-
-        // Re-run fetchData to fetch the newly seeded items from DB
-        return get().fetchData(userId);
-      }
-      // ------------------------------------------------------------
 
       const formattedRoutines: Routine[] = (dbRoutines || []).map((r: any) => ({
         id: r.id,
