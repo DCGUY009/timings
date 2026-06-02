@@ -450,9 +450,37 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
             <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-on-surface text-center mb-2 font-sans">
               Prepare Your Space
             </h2>
-            <p className="text-sm md:text-base text-on-surface-variant text-center max-w-lg mb-8 leading-relaxed font-sans px-4">
+            <p className="text-sm md:text-base text-on-surface-variant text-center max-w-lg mb-6 leading-relaxed font-sans px-4">
               Prepare your environment for maximum efficiency before commencing <strong>{routine.name}</strong>.
             </p>
+
+            {/* Routine Overview Section */}
+            <div className="bg-surface-container/25 border border-outline-variant/15 rounded-2xl p-4 w-full max-w-md mb-6 font-sans text-xs">
+              <div className="flex justify-between items-center mb-3 pb-2 border-b border-outline-variant/10">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#00f0ff]">
+                  Routine Sequence Overview
+                </span>
+                <span className="font-mono text-outline-variant">
+                  {steps.length} steps • {Math.round(steps.reduce((sum, s) => sum + getStepDuration(s), 0) / 60)} minutes
+                </span>
+              </div>
+              <div className="space-y-1.5 max-h-24 overflow-y-auto pr-1 custom-scrollbar">
+                {steps.map((step, idx) => (
+                  <div key={step.id || idx} className="flex justify-between text-on-surface-variant">
+                    <span className="truncate pr-4">
+                      {idx + 1}. {step.name}
+                    </span>
+                    <span className="font-mono text-[10px] shrink-0">
+                      {step.stepFormat === 'reps' 
+                        ? `${step.sets || 1}s x ${step.reps || 12}r` 
+                        : step.stepFormat === 'audio-loop'
+                          ? `${step.reps || 21} loops`
+                          : formatTime(step.duration)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {/* Checklist Card */}
             <div className="bg-surface-container/40 border border-outline-variant/20 rounded-2xl p-6 w-full max-w-md mb-8 backdrop-blur-md relative overflow-hidden">

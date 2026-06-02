@@ -130,7 +130,31 @@ export default function Dashboard({
                     !DEFAULT_ROUTINES.some((dr) => dr.id === r.id) &&
                     !DEFAULT_ROUTINES.some((dr) => dr.name.toLowerCase() === r.name.toLowerCase())
                 );
-                if (userOnlyRoutines.length === 0) return null;
+                
+                if (userOnlyRoutines.length === 0) {
+                  return (
+                    <div className="space-y-3">
+                      <span className="text-[10px] font-mono tracking-wider text-outline uppercase font-bold">
+                        My Custom Routines (0)
+                      </span>
+                      <div className="bg-surface-container-low/30 border border-dashed border-outline-variant/30 rounded-2xl p-6 text-center flex flex-col items-center justify-center min-h-[140px]">
+                        <h4 className="font-sans font-bold text-sm text-on-surface mb-1">
+                          No Custom Sequences Yet
+                        </h4>
+                        <p className="text-xs text-on-surface-variant max-w-sm mb-3.5 leading-relaxed">
+                          Design your own customized timings, intervals, reps, and audio loops to match your practice style.
+                        </p>
+                        <button
+                          onClick={() => onNavigate('routines')}
+                          className="text-xs font-mono font-bold text-primary-container hover:text-white underline flex items-center gap-1 cursor-pointer"
+                        >
+                          + Create Custom Routine
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div className="space-y-3">
                     <span className="text-[10px] font-mono tracking-wider text-outline uppercase font-bold">
@@ -138,34 +162,34 @@ export default function Dashboard({
                     </span>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {userOnlyRoutines.slice(0, 4).map((routine) => (
-                      <div
-                        key={routine.id}
-                        onClick={() => onStartRoutine(routine)}
-                        className="bg-surface-container-low border border-outline-variant/30 hover:border-primary-container/40 p-4.5 rounded-2xl flex justify-between items-center group cursor-pointer transition-all duration-300 hover:translate-y-[-1px]"
-                      >
-                        <div className="min-w-0 pr-4">
-                          <span className="text-[9px] font-mono uppercase tracking-wider text-outline block mb-1">
-                            {routine.category}
-                          </span>
-                          <h4 className="font-sans font-bold text-[16px] text-on-surface truncate group-hover:text-primary-container transition-colors">
-                            {routine.name}
-                          </h4>
-                          <p className="text-[11px] text-on-surface-variant mt-1 font-mono truncate">
-                            {routine.steps.length} Steps • {Math.round(routine.steps.reduce((sum, s) => sum + s.duration, 0) / 60)}m
-                          </p>
-                        </div>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onStartRoutine(routine); }}
-                          className="p-2.5 bg-surface-container-highest rounded-full text-primary-container group-hover:bg-primary-container group-hover:text-on-primary-container transition-colors cursor-pointer shrink-0"
+                        <div
+                          key={routine.id}
+                          onClick={() => onStartRoutine(routine)}
+                          className="bg-surface-container-low border border-outline-variant/30 hover:border-primary-container/40 p-4.5 rounded-2xl flex justify-between items-center group cursor-pointer transition-all duration-300 hover:translate-y-[-1px]"
                         >
-                          <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-                        </button>
-                      </div>
-                    ))}
+                          <div className="min-w-0 pr-4">
+                            <span className="text-[9px] font-mono uppercase tracking-wider text-outline block mb-1">
+                              {routine.category}
+                            </span>
+                            <h4 className="font-sans font-bold text-[16px] text-on-surface truncate group-hover:text-primary-container transition-colors">
+                              {routine.name}
+                            </h4>
+                            <p className="text-[11px] text-on-surface-variant mt-1 font-mono truncate">
+                              {routine.steps.length} Steps • {Math.round(routine.steps.reduce((sum, s) => sum + s.duration, 0) / 60)}m
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onStartRoutine(routine); }}
+                            className="p-2.5 bg-surface-container-highest rounded-full text-primary-container group-hover:bg-primary-container group-hover:text-on-primary-container transition-colors cursor-pointer shrink-0"
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
 
               {/* Preconfigured Example routines section */}
               <div className="space-y-3 pt-2">
