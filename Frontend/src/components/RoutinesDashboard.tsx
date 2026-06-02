@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Plus, Play, Edit2, Trash2, Library, Sparkles, Mic } from 'lucide-react';
+import { Search, Plus, Play, Edit2, Trash2, Library, Sparkles, Mic, Copy } from 'lucide-react';
 import { Routine } from '../types';
 import ConfirmationModal from './ConfirmationModal';
 import { DEFAULT_ROUTINES } from '../data/defaultRoutines';
@@ -12,6 +12,7 @@ interface RoutinesDashboardProps {
   onDeleteRoutine: (id: string) => void;
   onCreateRoutine: () => void;
   onEditVoice: (routine: Routine) => void;
+  onCustomize: (routine: Routine) => void;
 }
 
 export default function RoutinesDashboard({
@@ -21,6 +22,7 @@ export default function RoutinesDashboard({
   onDeleteRoutine,
   onCreateRoutine,
   onEditVoice,
+  onCustomize,
 }: RoutinesDashboardProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('All');
@@ -330,6 +332,13 @@ export default function RoutinesDashboard({
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onCustomize(routine); }}
+                        className="p-3.5 bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-white rounded-full transition-all duration-200 cursor-pointer shadow-lg active:scale-90 group-hover:scale-105 border border-outline-variant/35"
+                        title="Customize template"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
                       {routine.steps.some(s => s.stepFormat === 'audio-loop') && (
                         <button
                           onClick={(e) => { e.stopPropagation(); onEditVoice(routine); }}

@@ -219,6 +219,26 @@ export default function App() {
               setVoiceEditOnly(true);
               setVoiceModalOpen(true);
             }}
+            onCustomize={(routine) => {
+              const clonedRoutine: Routine = {
+                ...routine,
+                id: `custom-routine-${Date.now()}`,
+                name: `${routine.name} (Custom)`,
+                isPreconfigured: false,
+                steps: (routine.steps || []).map((step) => ({
+                  ...step,
+                  id: `custom-step-${Math.random().toString(36).substring(2, 11)}`,
+                  audioData: step.audioData || localStorage.getItem(`audio_loop_${step.id}`) || undefined
+                })),
+                checklist: (routine.checklist || []).map((item) => ({
+                  ...item,
+                  id: `custom-check-${Math.random().toString(36).substring(2, 11)}`,
+                  checked: false
+                }))
+              };
+              useRoutineStore.setState({ activeRoutine: clonedRoutine });
+              setCurrentScreen('edit-routine');
+            }}
           />
         );
       case 'edit-routine':
