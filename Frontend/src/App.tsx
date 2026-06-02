@@ -44,7 +44,8 @@ export default function App() {
     handleAddSessionToLog,
     handleLogout,
     handleLoginSuccess,
-    handleTimerFinished
+    handleTimerFinished,
+    handleResetData
   } = useRoutineStore();
 
   const showEmailConfirmedAlert = useRoutineStore((state) => state.showEmailConfirmedAlert);
@@ -116,16 +117,10 @@ export default function App() {
       return step;
     });
 
-    const isPreconfigured =
-      voiceModalRoutine.isPreconfigured ||
-      DEFAULT_ROUTINES.some((dr) => dr.id === voiceModalRoutine.id);
-
-    if (!isPreconfigured) {
-      try {
-        await handleSaveEditedRoutine(updatedRoutine);
-      } catch (err) {
-        console.error('Failed to save configured voice steps to database', err);
-      }
+    try {
+      await handleSaveEditedRoutine(updatedRoutine);
+    } catch (err) {
+      console.error('Failed to save configured voice steps to database', err);
     }
 
     setVoiceModalOpen(false);
@@ -133,8 +128,7 @@ export default function App() {
       const stillHasUnconfigured = (updatedRoutine.steps || []).some(
         (step) =>
           step.stepFormat === 'audio-loop' &&
-          !step.audioData &&
-          !localStorage.getItem(`audio_loop_${step.id}`)
+          !step.audioData
       );
       if (!stillHasUnconfigured) {
         handleStartRoutine(updatedRoutine);
@@ -228,7 +222,7 @@ export default function App() {
                 steps: (routine.steps || []).map((step) => ({
                   ...step,
                   id: `custom-step-${Math.random().toString(36).substring(2, 11)}`,
-                  audioData: step.audioData || localStorage.getItem(`audio_loop_${step.id}`) || undefined
+                  audioData: step.audioData || undefined
                 })),
                 checklist: (routine.checklist || []).map((item) => ({
                   ...item,
@@ -281,12 +275,8 @@ export default function App() {
                 localStorage.setItem('timings_user', JSON.stringify(updatedUser));
               }
             }}
-            onResetApp={() => {
-              localStorage.removeItem('timings_saved_routines');
-              localStorage.removeItem('timings_checklist');
-              localStorage.removeItem('timings_history');
-              localStorage.removeItem('timings_user');
-              localStorage.removeItem('timings_profile_avatar_id');
+            onResetApp={async () => {
+              await handleResetData();
               window.location.reload();
             }}
           />

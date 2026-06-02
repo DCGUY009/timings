@@ -29,7 +29,13 @@ export default function Dashboard({
         !DEFAULT_ROUTINES.some((dr) => dr.id === r.id) &&
         !DEFAULT_ROUTINES.some((dr) => dr.name.toLowerCase() === r.name.toLowerCase())
     ),
-    ...DEFAULT_ROUTINES.map(dr => ({ ...dr, isPreconfigured: true }))
+    ...DEFAULT_ROUTINES.map(dr => {
+      const userVersion = routines.find(r => r.id === dr.id);
+      if (userVersion) {
+        return { ...userVersion, isPreconfigured: true };
+      }
+      return { ...dr, isPreconfigured: true };
+    })
   ];
 
   // Let's keep a state of the currently selected routine for the checklist
@@ -204,7 +210,8 @@ export default function Dashboard({
                   <Sparkles className="w-3 h-3 text-[#eac324]/80" />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {DEFAULT_ROUTINES.map((routine) => {
+                  {DEFAULT_ROUTINES.map((dr) => {
+                    const routine = routines.find(r => r.id === dr.id) || dr;
                     const totalSec = routine.steps.reduce((sum, s) => sum + s.duration, 0);
                     const totalMin = Math.round(totalSec / 60) || 1;
                     return (

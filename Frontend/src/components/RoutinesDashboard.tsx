@@ -56,7 +56,13 @@ export default function RoutinesDashboard({
     });
 
   // Preconfigured routines are always shown (mark them so card can disable actions)
-  const preconfiguredRoutines: Routine[] = DEFAULT_ROUTINES.map(r => ({ ...r, isPreconfigured: true }));
+  const preconfiguredRoutines: Routine[] = DEFAULT_ROUTINES.map(dr => {
+    const userVersion = routines.find(r => r.id === dr.id);
+    if (userVersion) {
+      return { ...userVersion, isPreconfigured: true };
+    }
+    return { ...dr, isPreconfigured: true };
+  });
   const filteredPreconfigured = preconfiguredRoutines.filter((curr) => {
     const matchesSearch = curr.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           curr.description.toLowerCase().includes(searchQuery.toLowerCase());

@@ -135,7 +135,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
   // Handle Audio Loops playback logic
   useEffect(() => {
     if (currentStep && currentStep.stepFormat === 'audio-loop' && phase === 'timer') {
-      const audioSrc = currentStep.audioData || localStorage.getItem(`audio_loop_${currentStep.id}`);
+      const audioSrc = currentStep.audioData;
       if (isPlaying && audioSrc) {
         if (!activeAudioRef.current) {
           const audio = new Audio(audioSrc);
@@ -363,24 +363,18 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
   };
 
   const handleLocalVoiceConfigured = async (audioDataMap: Record<string, string>) => {
-    const isPreconfigured =
-      routine.isPreconfigured ||
-      DEFAULT_ROUTINES.some((dr) => dr.id === routine.id);
-
-    if (!isPreconfigured) {
-      let updatedRoutine = { ...routine };
-      updatedRoutine.steps = updatedRoutine.steps.map((step) => {
-        if (audioDataMap[step.id]) {
-          return { ...step, audioData: audioDataMap[step.id] };
-        }
-        return step;
-      });
-
-      try {
-        await handleSaveEditedRoutine(updatedRoutine);
-      } catch (err) {
-        console.error('Failed to save configured voice steps to database', err);
+    let updatedRoutine = { ...routine };
+    updatedRoutine.steps = updatedRoutine.steps.map((step) => {
+      if (audioDataMap[step.id]) {
+        return { ...step, audioData: audioDataMap[step.id] };
       }
+      return step;
+    });
+
+    try {
+      await handleSaveEditedRoutine(updatedRoutine);
+    } catch (err) {
+      console.error('Failed to save configured voice steps to database', err);
     }
     setVoiceEditModalOpen(false);
     if (startAfterConfig) {
@@ -393,17 +387,11 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
     const nextVal = !tickingSoundEnabled;
     setTickingSoundEnabled(nextVal);
 
-    const isPreconfigured =
-      routine.isPreconfigured ||
-      DEFAULT_ROUTINES.some((dr) => dr.id === routine.id);
-
-    if (!isPreconfigured) {
-      let updatedRoutine = { ...routine, tickingSoundEnabled: nextVal };
-      try {
-        await handleSaveEditedRoutine(updatedRoutine);
-      } catch (err) {
-        console.error('Failed to save metronome preference', err);
-      }
+    let updatedRoutine = { ...routine, tickingSoundEnabled: nextVal };
+    try {
+      await handleSaveEditedRoutine(updatedRoutine);
+    } catch (err) {
+      console.error('Failed to save metronome preference', err);
     }
   };
 
@@ -705,8 +693,7 @@ export default function TimerScreen({ routine, onClose }: TimerScreenProps) {
                       const unconfigured = (steps || []).filter(
                         (step) =>
                           step.stepFormat === 'audio-loop' &&
-                          !step.audioData &&
-                          !localStorage.getItem(`audio_loop_${step.id}`)
+                          !step.audioData
                       );
                       if (unconfigured.length > 0) {
                         setUnconfiguredStepsToEdit(unconfigured);

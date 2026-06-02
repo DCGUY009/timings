@@ -124,6 +124,7 @@ interface RoutineState {
   handleLogout: () => Promise<void>;
   handleLoginSuccess: (signedInUser: User, userId: string) => Promise<void>;
   handleTimerFinished: (completed: boolean, sessionLengthInMinutes: number) => Promise<void>;
+  handleResetData: () => Promise<void>;
 }
 
 export const useRoutineStore = create<RoutineState>((set, get) => ({
@@ -664,5 +665,66 @@ export const useRoutineStore = create<RoutineState>((set, get) => ({
     }
     
     set({ activeRoutine: null });
+  },
+
+  handleResetData: async () => {
+    const { user } = get();
+    if (!user) return;
+
+    try {
+      const { data: authUser, error: authErr } = await supabase.auth.getUser();
+      if (authErr || !authUser?.user) {
+        console.error('[handleResetData] Failed to get user:', authErr);
+        return;
+      }
+      const userId = authUser.user.id;
+
+      // 1. Fetch user routine IDs to clean up child steps and checklist items
+      const { data: routinesData } = await supabase
+        .from('routines')
+        .select('id')
+        .eq('user_id', userId);
+
+      const routineIds = routinesData?.map((r) => r.id) || [];
+
+      if (routineIds.length > 0) {
+        await supabase.from('routine_steps').delete().in('routine_id', routineIds);
+        await supabase.from('routine_checklist_items').delete().in('routine_id', routineIds);
+      }
+
+      // 2. Delete parent tables
+      await supabase.from('routines').delete().eq('user_id', userId);
+      await supabase.from('global_checklist_items').delete().eq('user_id', userId);
+      await supabase.from('session_history').delete().eq('user_id', userId);
+
+      // 3. Reset profile streak
+      await supabase.from('profiles').update({ streak_days: 0 }).eq('id', userId);
+
+      // 4. Reset local store state
+      set({
+        routines: [],
+        checklist: [],
+        history: [],
+        streakDays: 0,
+        activeRoutine: null
+      });
+
+    } catch (err) {
+      console.error('[handleResetData] Error resetting workspace data in DB:', err);
+    }
+
+    // 5. Clean up localStorage
+    localStorage.removeItem('timings_saved_routines');
+    localStorage.removeItem('timings_checklist');
+    localStorage.removeItem('timings_history');
+    localStorage.removeItem('timings_user');
+    localStorage.removeItem('timings_profile_avatar_id');
+
+    // Clean up all dynamically saved step audio loops
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('audio_loop_')) {
+        localStorage.removeItem(key);
+      }
+    });
   }
 }));

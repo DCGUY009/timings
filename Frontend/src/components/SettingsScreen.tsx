@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { 
-  Volume2, ShieldCheck, Info, Play, 
-  Settings, Sliders, Smartphone, Database, Bell, Eye, Lock
+  Play, Settings, Sliders, Database
 } from 'lucide-react';
 import { User } from '../types';
 import { chimeSynthesizer } from '../utils/AudioSynthesizer';
@@ -14,12 +13,10 @@ interface SettingsScreenProps {
 export default function SettingsScreen({ user }: SettingsScreenProps) {
   const [soundVolume, setSoundVolume] = useState(80);
   const [defaultCue, setDefaultCue] = useState('single-chime');
-  const [preventSleep, setPreventSleep] = useState(true);
-  const [hapticClick, setHapticClick] = useState(true);
-  const [offlineSync, setOfflineSync] = useState(true);
   const [testActive, setTestActive] = useState(false);
 
   const testTriggerChime = () => {
+    if (defaultCue === 'silent') return;
     setTestActive(true);
     if (defaultCue === 'double-chime') {
       chimeSynthesizer.playDoubleChime();
@@ -127,72 +124,27 @@ export default function SettingsScreen({ user }: SettingsScreenProps) {
             <div className="flex items-center gap-3 text-left">
               <span className={`w-2.5 h-2.5 rounded-full ${testActive ? 'bg-primary-container animate-ping' : 'bg-emerald-400 animate-pulse'}`}></span>
               <div>
-                <span className="text-xs font-sans font-bold block text-on-surface">Integrated Sound Testing</span>
-                <span className="text-[11px] font-sans text-on-surface-variant block mt-0.5">Test configured notes directly inside the browser drivers</span>
+                <span className="text-xs font-sans font-bold block text-on-surface">Test Audio Cue</span>
+                <span className="text-[11px] font-sans text-on-surface-variant block mt-0.5">Play a preview of your selected audio setting.</span>
               </div>
             </div>
             <button
               onClick={testTriggerChime}
-              disabled={testActive}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-primary-container bg-primary-container/10 hover:bg-primary-container hover:text-on-primary-container border border-primary-container/20 rounded-lg px-4 py-2 text-xs font-mono font-bold cursor-pointer transition-colors"
+              disabled={testActive || defaultCue === 'silent'}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-primary-container bg-primary-container/10 hover:bg-primary-container hover:text-on-primary-container border border-primary-container/20 rounded-lg px-4 py-2 text-xs font-mono font-bold cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Play className="w-3.5 h-3.5 fill-current" /> Test Synthesizer
             </button>
           </div>
         </section>
 
-        {/* Section 2: Display & System Mechanics */}
-        <section className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-6 md:p-8 space-y-6">
-          <div className="flex items-center gap-3 border-b border-outline-variant/15 pb-4">
-            <Smartphone className="w-5 h-5 text-primary-container" />
-            <div>
-              <h2 className="text-base font-bold font-sans text-on-surface">Display & System Mechanics</h2>
-              <p className="text-xs text-on-surface-variant font-sans mt-0.5">Configure device behavior and feedback.</p>
-            </div>
-          </div>
-
-          <div className="space-y-5">
-            {/* Prevent Screen Sleep */}
-            <div className="flex items-center justify-between gap-4 text-sm font-sans py-1">
-              <div>
-                <span className="font-semibold text-on-surface block">Prevent Screen Sleep</span>
-                <span className="text-xs text-on-surface-variant block mt-0.5">
-                  Keep interface active during timing run focus sequences.
-                </span>
-              </div>
-              <button 
-                onClick={() => setPreventSleep(!preventSleep)}
-                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer outline-none ${preventSleep ? 'bg-primary-container' : 'bg-surface-container-highest'}`}
-              >
-                <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${preventSleep ? 'translate-x-[20px]' : 'translate-x-[0px]'}`}></span>
-              </button>
-            </div>
-
-            {/* Simulated Haptic feedback Switch */}
-            <div className="flex items-center justify-between gap-4 text-sm font-sans border-t border-outline-variant/10 pt-4 py-1">
-              <div>
-                <span className="font-semibold text-on-surface block">Haptic Transitions</span>
-                <span className="text-xs text-on-surface-variant block mt-0.5">
-                  Simulate mechanical feedback when soundscapes trigger.
-                </span>
-              </div>
-              <button 
-                onClick={() => setHapticClick(!hapticClick)}
-                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer outline-none ${hapticClick ? 'bg-primary-container' : 'bg-surface-container-highest'}`}
-              >
-                <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${hapticClick ? 'translate-x-[20px]' : 'translate-x-[0px]'}`}></span>
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 3: Storage Preferences */}
+        {/* Section 3: Account & Data */}
         <section className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-6 md:p-8 space-y-6">
           <div className="flex items-center gap-3 border-b border-outline-variant/15 pb-4">
             <Database className="w-5 h-5 text-primary-container" />
             <div>
-              <h2 className="text-base font-bold font-sans text-on-surface">Storage & Credentials</h2>
-              <p className="text-xs text-on-surface-variant font-sans mt-0.5">Inspect user identity and active sequence sync features.</p>
+              <h2 className="text-base font-bold font-sans text-on-surface">Account & Data</h2>
+              <p className="text-xs text-on-surface-variant font-sans mt-0.5">Inspect active user session and database synchronization.</p>
             </div>
           </div>
 
@@ -209,21 +161,6 @@ export default function SettingsScreen({ user }: SettingsScreenProps) {
                   Active
                 </span>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-4 text-sm font-sans pt-3">
-              <div>
-                <span className="font-semibold text-on-surface block">Sandbox Auto Sync</span>
-                <span className="text-xs text-on-surface-variant block mt-0.5">
-                  Statistics and sequence profiles persist securely inside your local database.
-                </span>
-              </div>
-              <button 
-                onClick={() => setOfflineSync(!offlineSync)}
-                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer outline-none ${offlineSync ? 'bg-primary-container' : 'bg-surface-container-highest'}`}
-              >
-                <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${offlineSync ? 'translate-x-[20px]' : 'translate-x-[0px]'}`}></span>
-              </button>
             </div>
           </div>
         </section>

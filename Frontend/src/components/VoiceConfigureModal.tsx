@@ -57,22 +57,13 @@ export default function VoiceConfigureModal({
       setCurrentStepIdx((prev) => prev + 1);
     } else {
       // Completed configuring all steps
-      // Save all newly recorded audios to localStorage
-      const finalMap = { ...recordedAudios };
-      Object.entries(finalMap).forEach(([stepId, base64]) => {
-        if (base64 === '') {
-          localStorage.removeItem(`audio_loop_${stepId}`);
-        } else {
-          localStorage.setItem(`audio_loop_${stepId}`, base64);
-        }
-      });
-      onConfigured(finalMap);
+      onConfigured(recordedAudios);
     }
   };
 
   const currentAudioData = recordedAudios[activeStep.id] !== undefined
     ? recordedAudios[activeStep.id]
-    : (localStorage.getItem(`audio_loop_${activeStep.id}`) || undefined);
+    : (activeStep.audioData || undefined);
 
   const hasAudio = !!(currentAudioData && currentAudioData !== '');
 
