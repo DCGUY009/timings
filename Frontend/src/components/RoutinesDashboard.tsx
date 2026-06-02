@@ -40,7 +40,10 @@ export default function RoutinesDashboard({
   };
 
   const filteredRoutines = routines
-    .filter((curr) => !DEFAULT_ROUTINES.some((dr) => dr.id === curr.id))
+    .filter((curr) => 
+      !DEFAULT_ROUTINES.some((dr) => dr.id === curr.id) &&
+      !DEFAULT_ROUTINES.some((dr) => dr.name.toLowerCase() === curr.name.toLowerCase())
+    )
     .filter((curr) => {
       const matchesSearch = curr.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             curr.description.toLowerCase().includes(searchQuery.toLowerCase());

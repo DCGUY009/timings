@@ -116,7 +116,9 @@ export default function Dashboard({
               {/* User routines section */}
               {(() => {
                 const userOnlyRoutines = routines.filter(
-                  (r) => !DEFAULT_ROUTINES.some((dr) => dr.id === r.id)
+                  (r) => 
+                    !DEFAULT_ROUTINES.some((dr) => dr.id === r.id) &&
+                    !DEFAULT_ROUTINES.some((dr) => dr.name.toLowerCase() === r.name.toLowerCase())
                 );
                 if (userOnlyRoutines.length === 0) return null;
                 return (
